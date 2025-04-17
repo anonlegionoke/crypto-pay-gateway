@@ -157,7 +157,3 @@ For production monitoring, we recommend:
 1. Setting up Sentry for error tracking by configuring `NEXT_PUBLIC_SENTRY_DSN`
 2. Implementing server monitoring with Prometheus and Grafana
 3. Setting up log aggregation with ELK stack or similar
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
