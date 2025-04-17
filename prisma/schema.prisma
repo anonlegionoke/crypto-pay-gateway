@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Merchant {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  solanaWallet String?  // Merchant's wallet
+  createdAt    DateTime @default(now())
+
+  payments     Payment[]
+  payouts      Payout[]
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  merchantId  String
+  fromWallet  String   // The wallet that sent the payment
+  amount      Decimal  // Amount received
+  token       String   // SOL, USDT, etc.
+  status      String   
+  createdAt   DateTime @default(now())
+
+  payouts     Payout[]
+
+  Merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+}
+
+model Payout {
+  id          String   @id @default(uuid())
+  merchantId  String   
+  paymentId   String  
+  amountUSDC  Decimal  // Final USDC amount sent after swap
+  toWallet    String   // Merchant’s wallet
+  status      String   
+  createdAt   DateTime @default(now())
+
+  Merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  Payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+}
