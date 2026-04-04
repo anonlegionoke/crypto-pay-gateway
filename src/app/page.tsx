@@ -3,28 +3,29 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-9 row-start-2 items-center sm:items-center">
-        <div className="font-bold text-6xl leading-tight text-center">
-          <span className="text-3xl">Welcome to</span>
-          <br />
-          <span className="text-amber-300">Crypto Gate</span>
+    <div className="flex flex-col items-center justify-center min-h-screen p-8 sm:p-20 bg-gradient-to-br from-background to-gray-100 dark:to-gray-900 text-foreground transition-colors duration-300 font-[family-name:var(--font-geist-sans)]">
+      <main className="flex flex-col items-center max-w-4xl w-full">
+        <div className="mb-12 font-extrabold text-6xl sm:text-7xl leading-tight text-center tracking-tight">
+          <span className="block text-3xl sm:text-5xl mb-4 text-gray-600 dark:text-gray-300 font-bold">Welcome to</span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600 drop-shadow-sm">Crypto Gate</span>
         </div>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
+        
+        <p className="mb-12 text-center text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-2xl leading-relaxed">
+          The most seamless way to accept decentralized crypto payments and get paid directly in stablecoins. Simple, secure, borderless.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-6 items-center w-full justify-center">
           <Link href={`/dashboard`}
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
+            className="flex items-center justify-center gap-3 w-full sm:w-auto min-w-[200px] h-14 px-8 rounded-xl font-bold transition-all transform active:scale-95 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black shadow-lg hover:shadow-amber-500/25"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
             Go to Dashboard
-            </Link>
+          </Link>
         </div>
       </main>
+      
+      <footer className="absolute bottom-8 text-sm text-gray-500 dark:text-gray-500 font-medium">
+        Powered by Solana & Jupiter
+      </footer>
     </div>
   );
 }
