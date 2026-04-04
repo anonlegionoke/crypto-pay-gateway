@@ -119,21 +119,21 @@ export default function PayPage() {
     }
 
     return (
-        <div className="container mx-auto p-6">
-            <div className="flex items-center mb-8">
+        <div className="container mx-auto p-4 md:p-8 max-w-3xl">
+            <div className="flex items-center mb-8 bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
                 <button 
                     onClick={() => router.back()}
-                    className="text-amber-400 hover:text-amber-500 mr-4"
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors mr-4"
                 >
-                    ← Back
+                    ←
                 </button>
-                <h1 className="text-2xl font-bold">Make Payment</h1>
+                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">Make Payment</h1>
             </div>
 
-            <div className="bg-gray-900 rounded-xl p-8 max-w-2xl mx-auto">
+            <div className="bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 p-8 rounded-3xl shadow-xl">
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <label className="block mb-2">Select Token</label>
+                        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Select Token</label>
                         <select
                             value={selectedToken.mint}
                             onChange={(e) => {
@@ -141,57 +141,59 @@ export default function PayPage() {
                                 setUsdcEquivalent(null);
                                 setAmount('');
                             }}
-                            className="w-full p-2 bg-gray-800 rounded-md"
+                            className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm font-medium"
                         >
                             {TOKENS.map((token) => (
-                                <option key={token.mint} value={token.mint}>
+                                <option key={token.mint} value={token.mint} className="bg-white dark:bg-gray-900">
                                     {token.symbol} - {token.name}
                                 </option>
                             ))}
                         </select>
-                        <div className="mt-1 text-xs text-gray-400">
-                            <span>Pay with any token – merchant receives USDC via Jupiter swap</span>
+                        <div className="mt-2 text-xs text-gray-500 font-medium ml-1">
+                            <span>* Pay with any token – merchant receives USDC via Jupiter swap</span>
                         </div>
                     </div>
 
                     <div>
-                        <label className="block mb-2">Recipient Address</label>
+                        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Recipient Address</label>
                         <div className="flex items-center space-x-2">
                             <input 
                                 type="text"
                                 value={recipientAddress}
                                 onChange={(e) => setRecipientAddress(e.target.value)}
-                                className="flex-1 p-2 bg-gray-800 rounded-md"
+                                className="flex-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm font-mono"
                                 placeholder="Solana address..."
                                 required
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowScanner(true)}
-                                className="p-2 bg-amber-600 hover:bg-amber-700 rounded-md"
+                                className="px-5 py-3 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 dark:from-gray-700 dark:to-gray-600 dark:hover:from-gray-600 dark:hover:to-gray-500 text-gray-800 dark:text-white rounded-xl font-semibold shadow-sm transition-all"
                             >
-                                Scan QR
+                                📷 Scan QR
                             </button>
                         </div>
                     </div>
 
                     {showScanner && (
-                        <div className="mt-4 p-4 bg-gray-800 rounded-lg">
-                            <h3 className="mb-2 text-center">Scan Solana Address QR Code</h3>
-                            <QrScanner 
-                                onScanSuccess={(address) => {
-                                    handleScanSuccess(address);
-                                    toast.success('QR code scanned successfully');
-                                }}
-                                onScanError={(error) => {
-                                    setShowScanner(false);
-                                    toast.error('Failed to scan QR code: ' + error);
-                                }}
-                            />
+                        <div className="mt-6 p-6 bg-white dark:bg-gray-900/50 rounded-2xl shadow-inner border border-gray-100 dark:border-gray-800">
+                            <h3 className="mb-4 text-center font-semibold text-gray-800 dark:text-gray-200">Scan Solana Address</h3>
+                            <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                                <QrScanner 
+                                    onScanSuccess={(address) => {
+                                        handleScanSuccess(address);
+                                        toast.success('QR code scanned successfully');
+                                    }}
+                                    onScanError={(error) => {
+                                        setShowScanner(false);
+                                        toast.error('Failed to scan QR code: ' + error);
+                                    }}
+                                />
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => setShowScanner(false)}
-                                className="w-full mt-4 p-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-md transition-colors"
+                                className="w-full mt-4 p-3 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-semibold rounded-xl transition-colors"
                             >
                                 Cancel Scan
                             </button>
@@ -199,66 +201,75 @@ export default function PayPage() {
                     )}
 
                     <div>
-                        <label className="block mb-2">Amount</label>
+                        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Amount</label>
                         <input 
                             type="number"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             min="0"
                             step="0.000001"
-                            className="w-full p-2 bg-gray-800 rounded-md"
-                            placeholder={`Amount in ${selectedToken.symbol}...`}
+                            className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm font-mono text-lg"
+                            placeholder={`0.00 ${selectedToken.symbol}`}
                             required
                         />
-                        <div className="mt-2">
+                        <div className="mt-3 ml-1">
                             {usdcEquivalent !== null ? (
                                 <div className="flex items-center space-x-2">
-                                    <p className="text-lg font-medium text-amber-400">
+                                    <p className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-amber-600">
                                         ≈ {usdcEquivalent.toLocaleString('en-US', {
                                             minimumFractionDigits: 2,
                                             maximumFractionDigits: 2
                                         })} USDC
                                     </p>
-                                    <span className="text-xs text-gray-500">
-                                        (auto-updates)
+                                    <span className="text-xs font-semibold text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                                        auto-updates
                                     </span>
                                     {priceLoading && (
-                                        <div className="w-3 h-3 rounded-full border-t-2 border-r-2 border-amber-400 animate-spin ml-1"></div>
+                                        <div className="w-4 h-4 rounded-full border-2 border-r-transparent border-amber-500 animate-spin ml-2"></div>
                                     )}
                                 </div>
                             ) : amount && Number(amount) > 0 ? (
-                                <div className="flex items-center">
-                                    <p className="text-gray-400">
-                                        Calculating USDC equivalent...
+                                <div className="flex items-center text-sm font-medium">
+                                    <p className="text-gray-500 dark:text-gray-400">
+                                        Calculating swap route...
                                     </p>
-                                    <div className="w-3 h-3 rounded-full border-t-2 border-r-2 border-gray-400 animate-spin ml-2"></div>
+                                    <div className="w-4 h-4 rounded-full border-2 border-r-transparent border-gray-400 animate-spin ml-3"></div>
                                 </div>
                             ) : null}
                             {jupiterError && (
-                                <p className="text-red-400 mt-1">{jupiterError}</p>
+                                <p className="text-red-500 text-sm font-medium mt-2 bg-red-50 dark:bg-red-500/10 p-2 rounded-lg">{jupiterError}</p>
                             )}
                         </div>
                     </div>
 
-                    <button 
-                        type="submit"
-                        disabled={
-                            jupiterLoading || 
-                            transactionLoading || 
-                            !amount || 
-                            !recipientAddress || 
-                            !connected
-                        }
-                        className="w-full p-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-md transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-                    >
-                        {transactionLoading ? 'Processing...' : 
-                         jupiterLoading ? 'Loading...' : 
-                         !connected ? 'Connect Wallet' :
-                         'Send Payment'}
-                    </button>
+                    <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <button 
+                            type="submit"
+                            disabled={
+                                jupiterLoading || 
+                                transactionLoading || 
+                                !amount || 
+                                !recipientAddress || 
+                                !connected
+                            }
+                            className="w-full p-4 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-bold text-lg rounded-xl shadow-lg hover:shadow-amber-500/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {transactionLoading ? (
+                                <><div className="w-5 h-5 rounded-full border-2 border-r-transparent border-black animate-spin"></div> Processing...</>
+                            ) : jupiterLoading ? (
+                                <><div className="w-5 h-5 rounded-full border-2 border-r-transparent border-black animate-spin"></div> Loading Route...</>
+                            ) : !connected ? (
+                                'Connect Wallet First'
+                            ) : (
+                                'Send Payment'
+                            )}
+                        </button>
+                    </div>
                     
                     {transactionError && (
-                        <p className="mt-2 text-red-400">{transactionError}</p>
+                        <div className="mt-4 p-4 text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-500/10 rounded-xl border border-red-200 dark:border-red-500/20 text-center shadow-sm">
+                            {transactionError}
+                        </div>
                     )}
                 </form>
             </div>

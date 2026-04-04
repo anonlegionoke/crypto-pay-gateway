@@ -43,46 +43,54 @@ export default function Login() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-800">
-            <h1 className="mb-8 font-bold text-3xl">
-                Login to <span className="text-amber-300">Crypto Gate</span>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-gray-100 dark:to-gray-900 text-foreground transition-colors duration-300 p-4">
+            <h1 className="mb-8 font-bold text-4xl text-center">
+                Login to <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">Crypto Gate</span>
             </h1>
-            <form onSubmit={handleLogin} className="flex flex-col w-full max-w-md bg-black p-5 px-10 rounded-xl">
+            <form onSubmit={handleLogin} className="flex flex-col w-full max-w-md bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-2xl p-8 rounded-2xl">
                 {error && (
-                    <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-md p-3 mb-4">
+                    <div className="bg-red-500/10 border border-red-500/50 text-red-600 dark:text-red-400 rounded-lg p-4 mb-6 text-sm font-medium">
                         {error}
                     </div>
                 )}
-                <label className="my-2">Email</label>
-                <input
-                    className="p-1 rounded-md bg-gray-700 border border-gray-700"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
-                <label className="my-2 mt-5">Password</label>
-                <input
-                    className="p-1 rounded-md bg-gray-700 border border-gray-700"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
+                <div className="flex flex-col mb-4">
+                    <label className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Email</label>
+                    <input
+                        className="px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        placeholder="you@example.com"
+                    />
+                </div>
+                
+                <div className="flex flex-col mb-6">
+                    <label className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Password</label>
+                    <input
+                        className="px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        placeholder="••••••••"
+                    />
+                </div>
+                
                 <button 
                     type="submit"
                     disabled={loading}
-                    className={`p-2 mt-10 rounded-md text-black cursor-pointer ${
+                    className={`w-full py-3 mt-4 rounded-lg font-bold text-black transition-all transform active:scale-95 ${
                         loading 
                             ? 'bg-amber-600/50 cursor-not-allowed' 
-                            : 'bg-amber-600 hover:bg-amber-300'
+                            : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 shadow-lg hover:shadow-amber-500/25'
                     }`}
                 >
                     {loading ? 'Logging in...' : 'Login'}
                 </button>
             </form>
-            <p className="mt-4 text-center">
-                Don't have an account? <a href="/signup" className="text-amber-600 hover:text-amber-300">Sign up</a>
+            <p className="mt-8 text-center text-gray-600 dark:text-gray-400">
+                Don't have an account? <a href="/signup" className="text-amber-600 font-semibold hover:text-amber-500 transition-colors">Sign up</a>
             </p>
         </div>
     );

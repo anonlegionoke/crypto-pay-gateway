@@ -12,65 +12,71 @@ export default function Dashboard() {
   const recentTransactions = transactions.slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6 px-11">
-      <header className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Merchant Dashboard</h1>
+    <div className="p-6 px-4 md:px-8">
+      <header className="flex justify-between items-center mb-8 bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">Merchant Dashboard</h1>
         <button 
           onClick={refreshWalletInfo}
           disabled={loading}
-          className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+          className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium shadow-sm transition-all"
         >
           {loading ? (
-            <span className="animate-spin">⟳</span>
+            <span className="animate-spin text-amber-500">⟳</span>
           ) : (
-            <span>⟳</span>
+            <span className="text-amber-500">⟳</span>
           )} Refresh
         </button>
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-8xl mx-auto">
-        <div className="p-6 bg-gray-800 rounded-xl shadow-lg h-72 flex flex-col">
-          <h2 className="text-lg font-semibold mb-4">Balance</h2>
+        <div className="p-8 bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl h-72 flex flex-col transition-all hover:shadow-2xl">
+          <h2 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+            <span className="text-amber-500">💰</span> Balance
+          </h2>
           <div className="flex-1 flex items-center justify-center">
             {loading ? (
-              <div className="animate-pulse text-2xl">Loading...</div>
+              <div className="animate-pulse text-2xl text-gray-400 font-light">Loading...</div>
             ) : error ? (
-              <div className="text-red-400 text-2xl">Error: {error}</div>
+              <div className="text-red-500 text-lg font-medium bg-red-50 dark:bg-red-500/10 p-4 rounded-xl border border-red-200 dark:border-red-500/20">Error: {error}</div>
             ) : balance === null ? (
-              <div className="text-gray-400 text-2xl">Please connect wallet</div>
+              <div className="text-gray-500 dark:text-gray-400 text-xl font-light">Please connect wallet</div>
             ) : (
-              <p className="text-4xl font-bold">{balance.toFixed(4)} SOL</p>
+              <div className="text-center">
+                <p className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600 drop-shadow-sm">{balance.toFixed(4)} <span className="text-2xl font-bold text-gray-800 dark:text-gray-200">SOL</span></p>
+              </div>
             )}
           </div>
         </div>
         
-        <div className="p-6 bg-gray-800 rounded-xl shadow-lg h-72 flex flex-col">
-          <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
-          <div className="flex-1 flex flex-col">
+        <div className="p-8 bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl h-72 flex flex-col transition-all hover:shadow-2xl">
+          <h2 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+            <span className="text-blue-500">📋</span> Recent Transactions
+          </h2>
+          <div className="flex-1 flex flex-col overflow-hidden">
             {loading ? (
-              <div className="animate-pulse text-sm flex items-center justify-center h-full">Loading...</div>
+              <div className="animate-pulse text-sm flex items-center justify-center h-full text-gray-400">Loading...</div>
             ) : error ? (
-              <div className="text-red-400 text-sm flex items-center justify-center h-full">Error: {error}</div>
+              <div className="text-red-500 text-sm flex items-center justify-center h-full">Error: {error}</div>
             ) : transactions.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-sm">
+              <div className="flex items-center justify-center h-full text-sm text-gray-500 dark:text-gray-400">
                 <p>No transactions yet.</p>
               </div>
             ) : (
-              <ul className="text-sm space-y-2 w-full">
+              <ul className="text-sm space-y-3 w-full overflow-y-auto pr-2 custom-scrollbar">
                 {recentTransactions.map((tx: { signature: string; type: string; amount: number }) => (
-                  <li key={tx.signature}>
+                  <li key={tx.signature} className="border-b border-gray-100 dark:border-gray-800 pb-3 last:border-0 last:pb-0">
                     <div className="flex justify-between items-center">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs min-w-[80px] text-center ${
+                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium min-w-[80px] justify-center ${
                         tx.type === 'send'
-                          ? 'bg-red-500/20 text-red-400'
-                          : 'bg-green-500/20 text-green-400'
+                          ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'
+                          : 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400'
                       }`}>
                         {tx.type === 'send' ? 'Sent' : 'Received'}
                       </span>
                       <div className="flex flex-col items-end">
-                        <span className="font-mono">{tx.amount.toFixed(4)} SOL</span>
+                        <span className="font-mono font-semibold text-gray-800 dark:text-gray-200">{tx.amount.toFixed(4)} SOL</span>
                         {tx.type === 'send' && (
-                          <span className="text-xs text-green-400">Converted to USDC</span>
+                          <span className="text-xs text-green-600 dark:text-green-400 font-medium">Converted to USDC</span>
                         )}
                       </div>
                     </div>
@@ -83,20 +89,20 @@ export default function Dashboard() {
 
         <button 
           onClick={() => router.push('/dashboard/receive')}
-          className="p-6 bg-gradient-to-r from-amber-500 to-amber-700 rounded-xl shadow-lg hover:from-amber-600 hover:to-amber-800 transition-all duration-200 text-black font-semibold text-lg flex flex-col items-center justify-center h-48"
+          className="p-8 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 text-black font-semibold text-xl flex flex-col items-center justify-center h-48 group border border-amber-300/50"
         >
-          <span className="text-2xl mb-2">📥</span>
+          <span className="text-4xl mb-3 group-hover:-translate-y-1 transition-transform duration-300">📥</span>
           Receive Payment
-          <span className="text-sm mt-2 text-amber-900">Scan QR code or copy wallet address</span>
+          <span className="text-sm mt-3 text-amber-900 font-medium opacity-80">Scan QR code or copy wallet address</span>
         </button>
 
         <button 
           onClick={() => router.push('/dashboard/pay')}
-          className="p-6 bg-gradient-to-r from-blue-500 to-blue-700 rounded-xl shadow-lg hover:from-blue-600 hover:to-blue-800 transition-all duration-200 text-white font-semibold text-lg flex flex-col items-center justify-center h-48"
+          className="p-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 text-white font-semibold text-xl flex flex-col items-center justify-center h-48 group border border-blue-400/50"
         >
-          <span className="text-2xl mb-2">📤</span>
+          <span className="text-4xl mb-3 group-hover:-translate-y-1 transition-transform duration-300">📤</span>
           Make Payment
-          <span className="text-sm mt-2 text-blue-200">Send USDC to merchant</span>
+          <span className="text-sm mt-3 text-blue-100 font-medium opacity-80">Send USDC to merchant</span>
         </button>
       </div>
     </div>
