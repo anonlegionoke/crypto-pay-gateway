@@ -29,9 +29,17 @@ export async function POST(request: Request) {
          return NextResponse.json({message: "Incorrect password"}, {status: 401});
      }
  
-     const token = jwt.sign({ merchant: merchant.id }, process.env.JWT_SECRET!, { expiresIn: "1h" });
+     const token = jwt.sign({ merchantId: merchant.id }, process.env.JWT_SECRET!, { expiresIn: "1h" });
+
+     const safeMerchant = {
+       id: merchant.id,
+       email: merchant.email,
+       name: merchant.name,
+       solanaWallet: merchant.solanaWallet,
+       createdAt: merchant.createdAt,
+     };
      
-     return NextResponse.json({token, merchant});
+     return NextResponse.json({token, merchant: safeMerchant});
    } catch (error) {
      return NextResponse.json({message: "Something went wrong"}, {status: 500});
    }

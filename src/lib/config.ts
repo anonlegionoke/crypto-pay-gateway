@@ -9,7 +9,11 @@
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Network configuration (can be overridden by .env)
-const SOLANA_NETWORK = process.env.SOLANA_NETWORK || (isProduction ? 'mainnet-beta' : 'devnet');
+const SOLANA_NETWORK = (
+  process.env.NEXT_PUBLIC_SOLANA_NETWORK ||
+  process.env.SOLANA_NETWORK ||
+  (isProduction ? 'mainnet-beta' : 'devnet')
+) as 'devnet' | 'mainnet-beta' | 'testnet';
 
 // Jupiter API configuration
 const JUPITER_API_URL = 'https://quote-api.jup.ag/v4';
@@ -17,7 +21,7 @@ const JUPITER_API_URL = 'https://quote-api.jup.ag/v4';
 // RPC Endpoints
 const RPC_ENDPOINTS = {
   'devnet': 'https://api.devnet.solana.com',
-  'mainnet-beta': 'https://rpc.ankr.com/solana', // Consider using a more reliable RPC provider in production
+  'mainnet-beta': 'https://rpc.ankr.com/solana',
   'testnet': 'https://api.testnet.solana.com'
 };
 
@@ -42,10 +46,13 @@ const CONFIRMATION_OPTIONS = {
 export const config = {
   isProduction,
   network: SOLANA_NETWORK,
-  rpcEndpoint: RPC_ENDPOINTS[SOLANA_NETWORK as keyof typeof RPC_ENDPOINTS],
+  defaultRpcEndpoint: RPC_ENDPOINTS[SOLANA_NETWORK as keyof typeof RPC_ENDPOINTS],
+  rpcEndpoint:
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+    RPC_ENDPOINTS[SOLANA_NETWORK as keyof typeof RPC_ENDPOINTS],
   jupiterApiUrl: JUPITER_API_URL,
   tokenAddresses: TOKEN_ADDRESSES,
   confirmationOptions: CONFIRMATION_OPTIONS,
-  // Jupiter feature flag - set to true to enable real Jupiter swaps in production
-  useRealJupiterSwaps: isProduction,
+  // In production this should be explicitly true only when fully ready for real settlement.
+  useRealJupiterSwaps: process.env.NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS,
 }; 

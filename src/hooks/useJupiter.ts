@@ -5,12 +5,12 @@ import { config } from '@/lib/config';
 
 // Token addresses
 const SOL_MINT = config.tokenAddresses.SOL;
-const MAINNET_USDC = config.tokenAddresses.USDC['mainnet-beta'];
+const USDC_MINT = config.tokenAddresses.USDC[config.network];
 
 // Token decimal mapping
 const TOKEN_DECIMALS: { [key: string]: number } = {
     [SOL_MINT]: 9, // SOL
-    [MAINNET_USDC]: 6, // USDC
+    [USDC_MINT]: 6, // USDC
     [config.tokenAddresses.USDC.devnet]: 6, // USDC Devnet
     'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': 5, // BONK
     'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN': 6, // JUP
@@ -28,17 +28,12 @@ interface PriceInfo {
 
 // Add alternate API endpoints
 const API_ENDPOINTS = [
-    'https://quote-api.jup.ag/v4',  // Primary endpoint
-    'https://quote-api.jup.ag/v6',  // Secondary endpoint
-    'https://jup-ag.publicnode.com', // Fallback public node
+    'https://quote-api.jup.ag/v6',  // Primary endpoint
+    'https://quote-api.jup.ag/v4',  // Secondary endpoint
 ];
 
-// Add multiple RPC endpoints for Solana mainnet
-const PRICE_RPC_ENDPOINTS = [
-    'https://api.mainnet-beta.solana.com',
-    'https://rpc.ankr.com/solana',
-    'https://solana-mainnet.rpc.extrnode.com'
-];
+// Use the configured cluster for consistency with wallet network
+const PRICE_RPC_ENDPOINTS = [config.rpcEndpoint];
 
 export function useJupiter() {
     const [loading, setLoading] = useState(false);
@@ -227,7 +222,7 @@ export function useJupiter() {
                 // Use Jupiter's quote API for accurate price including fees and slippage
                 const params = {
                     inputMint: inputMint.toString(),
-                    outputMint: MAINNET_USDC,
+                    outputMint: USDC_MINT,
                     amount: Math.floor(inputAmount * Math.pow(10, TOKEN_DECIMALS[inputMint.toString()] || 6)).toString(),
                     slippageBps: 50, // 0.5%
                     feeBps: 0
@@ -248,7 +243,7 @@ export function useJupiter() {
                     console.log('Jupiter quote response:', data);
 
                     // Convert outAmount from smallest unit using USDC decimals
-                    const outAmount = Number(data.outAmount) / Math.pow(10, TOKEN_DECIMALS[MAINNET_USDC]);
+                    const outAmount = Number(data.outAmount) / Math.pow(10, TOKEN_DECIMALS[USDC_MINT]);
                     
                     const priceInfo = {
                         outAmount,
@@ -317,9 +312,9 @@ export function useJupiter() {
                 // Create a mock response
                 const mockResponse = {
                     inputMint: inputMint.toString(),
-                    outputMint: MAINNET_USDC,
+                    outputMint: USDC_MINT,
                     inAmount: (inputAmount * Math.pow(10, TOKEN_DECIMALS[inputMintStr] || 6)).toString(),
-                    outAmount: (estimatedUsdValue * Math.pow(10, TOKEN_DECIMALS[MAINNET_USDC])).toString(),
+                    outAmount: (estimatedUsdValue * Math.pow(10, TOKEN_DECIMALS[USDC_MINT])).toString(),
                     priceImpactPct: 0,
                     slippageBps: 50
                 };

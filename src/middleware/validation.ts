@@ -11,20 +11,40 @@ export const commonSchemas = {
   merchantId: z.string().uuid(),
 };
 
-export async function validateRequest(
+export interface ValidationResult<T> {
+  data?: T;
+  response?: NextResponse;
+}
+
+export async function validateRequest<T>(
   request: NextRequest,
-  schema: z.ZodSchema
-): Promise<NextResponse | null> {
+  schema: z.ZodSchema<T>
+): Promise<ValidationResult<T>> {
   try {
     const body = await request.json();
-    await schema.parseAsync(body);
-    return null;
+    const data = await schema.parseAsync(body);
+    return { data };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return new NextResponse(
+      return {
+        response: new NextResponse(
+          JSON.stringify({
+            error: 'Validation failed',
+            details: error.errors,
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        ),
+      };
+    }
+    return {
+      response: new NextResponse(
         JSON.stringify({
-          error: 'Validation failed',
-          details: error.errors,
+          error: 'Invalid request body',
         }),
         {
           status: 400,
@@ -32,18 +52,7 @@ export async function validateRequest(
             'Content-Type': 'application/json',
           },
         }
-      );
-    }
-    return new NextResponse(
-      JSON.stringify({
-        error: 'Invalid request body',
-      }),
-      {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+      ),
+    };
   }
 } 

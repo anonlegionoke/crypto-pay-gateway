@@ -25,10 +25,8 @@ export function logError(error: unknown, context?: Record<string, any>) {
     timestamp: new Date().toISOString(),
   });
   
-  // Here you would integrate with monitoring services if available
+  // Sending error to Sentry DSN - Not added now
   if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-    // Sentry or other error tracking service would be initialized and used here
-    // Example: Sentry.captureException(errorWithMessage, { extra: context });
   }
 }
 

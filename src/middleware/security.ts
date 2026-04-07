@@ -3,14 +3,24 @@ import type { NextRequest } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
-// Initialize rate limiter
-const ratelimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(
-    Number(process.env.RATE_LIMIT_MAX_REQUESTS || 100),
-    '15m' // 15 minutes in duration format
-  ),
-});
+function getRateLimiter() {
+  const hasUpstashConfig =
+    !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!hasUpstashConfig) {
+    return null;
+  }
+
+  return new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.slidingWindow(
+      Number(process.env.RATE_LIMIT_MAX_REQUESTS || 100),
+      '15m' // 15 minutes in duration format
+    ),
+  });
+}
+
+const ratelimit = getRateLimiter();
 
 export async function securityMiddleware(request: NextRequest) {
   // Get IP address from headers or fallback
@@ -18,16 +28,17 @@ export async function securityMiddleware(request: NextRequest) {
   const ip = forwardedFor ? forwardedFor.split(',')[0] : '127.0.0.1';
 
   // Rate limiting
-  const { success, limit, reset, remaining } = await ratelimit.limit(ip);
-
   // Add rate limit headers
   const response = NextResponse.next();
-  response.headers.set('X-RateLimit-Limit', limit.toString());
-  response.headers.set('X-RateLimit-Remaining', remaining.toString());
-  response.headers.set('X-RateLimit-Reset', reset.toString());
+  if (ratelimit) {
+    const { success, limit, reset, remaining } = await ratelimit.limit(ip);
+    response.headers.set('X-RateLimit-Limit', limit.toString());
+    response.headers.set('X-RateLimit-Remaining', remaining.toString());
+    response.headers.set('X-RateLimit-Reset', reset.toString());
 
-  if (!success) {
-    return new NextResponse('Too Many Requests', { status: 429 });
+    if (!success) {
+      return new NextResponse('Too Many Requests', { status: 429 });
+    }
   }
 
   // CORS headers

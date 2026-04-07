@@ -1,8 +1,10 @@
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Connection, LAMPORTS_PER_SOL, PublicKey, TransactionResponse, TransactionInstruction, SystemProgram } from '@solana/web3.js';
+import { Connection, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { useEffect, useState } from 'react';
+import { config } from '@/lib/config';
 
-const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+const primaryConnection = new Connection(config.rpcEndpoint, 'confirmed');
+const fallbackConnection = new Connection(config.defaultRpcEndpoint, 'confirmed');
 
 interface Transaction {
   signature: string;
@@ -19,6 +21,16 @@ export function useWalletInfo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getWorkingConnection = async () => {
+    try {
+      await primaryConnection.getVersion();
+      return primaryConnection;
+    } catch (err) {
+      console.warn('Primary RPC unavailable for wallet info, using fallback cluster RPC');
+      return fallbackConnection;
+    }
+  };
+
   const fetchWalletInfo = async () => {
     if (!publicKey) return;
     
@@ -26,6 +38,8 @@ export function useWalletInfo() {
     setError(null);
 
     try {
+      const connection = await getWorkingConnection();
+
       // Fetch balance
       const balance = await connection.getBalance(publicKey);
       setBalance(balance / LAMPORTS_PER_SOL);

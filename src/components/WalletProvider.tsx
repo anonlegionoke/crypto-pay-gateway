@@ -5,7 +5,7 @@ import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
-import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import { config } from '@/lib/config';
 
 // Import styles in a Next.js friendly way
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -15,8 +15,15 @@ interface Props {
 }
 
 export const ClientWalletProvider: FC<Props> = ({ children }) => {
-  const network = WalletAdapterNetwork.Devnet;
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  const endpoint = useMemo(() => {
+    if (process.env.NEXT_PUBLIC_WALLET_RPC_URL) {
+      return process.env.NEXT_PUBLIC_WALLET_RPC_URL;
+    }
+
+    if (config.network === 'mainnet-beta') return clusterApiUrl('mainnet-beta');
+    if (config.network === 'testnet') return clusterApiUrl('testnet');
+    return clusterApiUrl('devnet');
+  }, []);
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
