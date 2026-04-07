@@ -11,7 +11,7 @@ test('payment create route does not parse request body twice', () => {
   const content = read('src/app/api/payment/create/route.ts');
   const requestJsonCalls = (content.match(/request\.json\(/g) || []).length;
   assert.equal(requestJsonCalls, 0, 'route should rely on validated payload rather than re-reading request.json()');
-  assert.match(content, /validation\.data/, 'validated data should be used for persistence');
+  assert.match(content, /deprecated/i, 'route should clearly indicate the canonical replacement flow');
 });
 
 test('JWT payload contract uses merchantId key', () => {

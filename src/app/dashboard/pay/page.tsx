@@ -1,14 +1,13 @@
 'use client'
 
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { QrScanner } from '@/components/QrScanner';
 import { useJupiter } from '@/hooks/useJupiter';
 import { useTransaction } from '@/hooks/useTransaction';
 import { PublicKey } from '@solana/web3.js';
 import { toast } from 'react-hot-toast';
-import { config } from '@/lib/config';
 
 // Common tokens (using mainnet addresses for price discovery)
 const TOKENS = [
@@ -24,16 +23,23 @@ const TOKENS = [
 
 export default function PayPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { publicKey, connected } = useWallet();
     const { getPrice, loading: jupiterLoading, priceLoading, error: jupiterError } = useJupiter();
     const { executePayment, loading: transactionLoading, error: transactionError } = useTransaction();
-    
-    const [selectedToken, setSelectedToken] = useState(TOKENS[0]);
-    const [recipientAddress, setRecipientAddress] = useState('');
-    const [amount, setAmount] = useState('');
+
+    const paymentId = searchParams.get('paymentId') || '';
+    const presetRecipient = searchParams.get('recipient') || '';
+    const presetAmount = searchParams.get('amount') || '';
+    const presetMode = searchParams.get('mode') === 'REAL' ? 'REAL' : 'SIMULATION';
+    const presetTokenMint = searchParams.get('tokenMint') || TOKENS[0].mint;
+
+    const [selectedToken, setSelectedToken] = useState(TOKENS.find((token) => token.mint === presetTokenMint) || TOKENS[0]);
+    const [recipientAddress, setRecipientAddress] = useState(presetRecipient);
+    const [amount, setAmount] = useState(presetAmount);
+    const [executionMode, setExecutionMode] = useState<'SIMULATION' | 'REAL'>(presetMode);
     const [usdcEquivalent, setUsdcEquivalent] = useState<number | null>(null);
     const [showScanner, setShowScanner] = useState(false);
-    const isSimulationMode = !config.useRealJupiterSwaps;
 
     useEffect(() => {
         const updateUsdcEquivalent = async () => {
@@ -88,9 +94,25 @@ export default function PayPage() {
             }
 
             // 2. Execute the payment
-            const result = await executePayment(quote.quoteResponse, recipientAddress);
+            const result = await executePayment(quote.quoteResponse, recipientAddress, paymentId || undefined, executionMode);
             
             if (result.confirmed) {
+                if (paymentId) {
+                    await fetch('/api/payment/confirm', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            paymentId,
+                            fromWallet: publicKey!.toString(),
+                            signature: result.signature,
+                            status: 'CONFIRMED',
+                            quoteAmountUSDC: usdcEquivalent?.toString(),
+                        }),
+                    });
+                }
+
                 if (result.mode === 'simulated') {
                     toast.success(`Simulated transfer of ${amount} ${selectedToken.symbol} sent.`);
                 } else {
@@ -152,10 +174,38 @@ export default function PayPage() {
                         </select>
                         <div className="mt-2 text-xs text-gray-500 font-medium ml-1">
                             <span>
-                                {isSimulationMode
+                                {executionMode === 'SIMULATION'
                                     ? '* Simulation mode: SOL-only transfer for testing. Enable real swaps for token conversion.'
                                     : '* Pay with any token – merchant receives USDC via Jupiter swap'}
                             </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Execution Mode</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setExecutionMode('SIMULATION')}
+                                className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors ${
+                                    executionMode === 'SIMULATION'
+                                        ? 'bg-amber-500 text-black border-amber-400'
+                                        : 'bg-gray-50 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700'
+                                }`}
+                            >
+                                Simulation
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setExecutionMode('REAL')}
+                                className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors ${
+                                    executionMode === 'REAL'
+                                        ? 'bg-blue-500 text-white border-blue-400'
+                                        : 'bg-gray-50 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700'
+                                }`}
+                            >
+                                Real Swap
+                            </button>
                         </div>
                     </div>
 

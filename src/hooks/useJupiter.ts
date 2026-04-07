@@ -28,12 +28,13 @@ interface PriceInfo {
 
 // Add alternate API endpoints
 const API_ENDPOINTS = [
-    'https://quote-api.jup.ag/v6',  // Primary endpoint
-    'https://quote-api.jup.ag/v4',  // Secondary endpoint
-];
+    `${config.jupiterApiBaseUrl}/swap/v1`,
+    'https://api.jup.ag/swap/v1',
+    'https://lite-api.jup.ag/swap/v1',
+].filter((endpoint, index, endpoints) => endpoints.indexOf(endpoint) === index);
 
 // Use the configured cluster for consistency with wallet network
-const PRICE_RPC_ENDPOINTS = [config.rpcEndpoint];
+const PRICE_RPC_ENDPOINTS = config.rpcFallbackEndpoints;
 
 export function useJupiter() {
     const [loading, setLoading] = useState(false);
@@ -152,6 +153,7 @@ export function useJupiter() {
                         signal: controller.signal,
                         headers: {
                             ...options?.headers,
+                            ...(config.jupiterApiKey ? { 'x-api-key': config.jupiterApiKey } : {}),
                             'Cache-Control': 'no-cache, no-store, must-revalidate',
                             'Pragma': 'no-cache',
                             'Expires': '0'

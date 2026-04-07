@@ -16,7 +16,8 @@ const SOLANA_NETWORK = (
 ) as 'devnet' | 'mainnet-beta' | 'testnet';
 
 // Jupiter API configuration
-const JUPITER_API_URL = 'https://quote-api.jup.ag/v4';
+const JUPITER_API_BASE_URL = process.env.NEXT_PUBLIC_JUPITER_API_URL || 'https://lite-api.jup.ag';
+const JUPITER_API_KEY = process.env.NEXT_PUBLIC_JUPITER_API_KEY || process.env.JUPITER_API_KEY || '';
 
 // RPC Endpoints
 const RPC_ENDPOINTS = {
@@ -50,9 +51,14 @@ export const config = {
   rpcEndpoint:
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
     RPC_ENDPOINTS[SOLANA_NETWORK as keyof typeof RPC_ENDPOINTS],
-  jupiterApiUrl: JUPITER_API_URL,
+  rpcFallbackEndpoints: [
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
+    RPC_ENDPOINTS[SOLANA_NETWORK as keyof typeof RPC_ENDPOINTS],
+  ].filter((endpoint, index, endpoints): endpoint is string => Boolean(endpoint) && endpoints.indexOf(endpoint) === index),
+  jupiterApiBaseUrl: JUPITER_API_BASE_URL,
+  jupiterApiKey: JUPITER_API_KEY,
   tokenAddresses: TOKEN_ADDRESSES,
   confirmationOptions: CONFIRMATION_OPTIONS,
   // In production this should be explicitly true only when fully ready for real settlement.
-  useRealJupiterSwaps: process.env.NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS,
+  useRealJupiterSwaps: process.env.NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS === 'true',
 }; 
