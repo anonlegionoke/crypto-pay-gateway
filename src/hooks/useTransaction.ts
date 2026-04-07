@@ -14,6 +14,8 @@ export function useTransaction() {
   const executePayment = useCallback(async (
     quote: QuoteResponse,
     recipientAddress: string,
+    paymentId?: string,
+    mode: 'SIMULATION' | 'REAL' = config.useRealJupiterSwaps ? 'REAL' : 'SIMULATION',
   ) => {
     if (!publicKey || !signTransaction || !connected) {
       throw new Error('Wallet not connected');
@@ -24,10 +26,10 @@ export function useTransaction() {
 
     try {
       // Decide whether to use real Jupiter swaps or simulated swaps based on config
-      if (config.useRealJupiterSwaps) {
+      if (mode === 'REAL') {
         // In production with real Jupiter swaps enabled, use versionedTransaction
         console.log("Using real Jupiter swap for payment");
-        return await executeJupiterSwapInternal(quote, recipientAddress);
+        return await executeJupiterSwapInternal(quote, recipientAddress, paymentId);
       } else {
         // In development or testing, use simulated swap
         console.log("Using simulated swap for payment on", config.network);
@@ -59,6 +61,7 @@ export function useTransaction() {
           signature,
           confirmed: true,
           mode: 'simulated' as const,
+          paymentId,
         };
       }
     } catch (err) {
@@ -74,6 +77,7 @@ export function useTransaction() {
   const executeJupiterSwapInternal = useCallback(async (
     quote: QuoteResponse,
     recipientAddress: string,
+    paymentId?: string,
   ) => {
     if (!publicKey || !signTransaction || !connected) {
       throw new Error('Wallet not connected');
@@ -106,6 +110,7 @@ export function useTransaction() {
         signature,
         confirmed: true,
         mode: 'real' as const,
+        paymentId,
       };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Swap failed';

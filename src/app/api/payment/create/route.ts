@@ -1,46 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { validateRequest, commonSchemas } from '@/middleware/validation';
-import { prisma } from '@/lib/prisma';
-import { handleApiError } from '@/lib/error-handler';
+import { NextResponse } from 'next/server';
 
-// Create payment schema
-const createPaymentSchema = z.object({
-  merchantId: commonSchemas.merchantId,
-  amount: commonSchemas.amount,
-  token: z.string(),
-  fromWallet: z.string().optional(),
-  metadata: z.record(z.string()).optional(),
-});
-
-export async function POST(request: NextRequest) {
-  // Validate request
-  const validation = await validateRequest(request, createPaymentSchema);
-  if (validation.response) return validation.response;
-  const body = validation.data!;
-
-  try {
-    // Create payment in database
-    const payment = await prisma.payment.create({
-      data: {
-        merchantId: body.merchantId,
-        amount: body.amount,
-        token: body.token,
-        fromWallet: body.fromWallet || 'pending',
-        status: 'PENDING',
-      },
-    });
-
-    return NextResponse.json(
-      { 
-        success: true, 
-        paymentId: payment.id,
-        paymentUrl: `${process.env.NEXT_PUBLIC_API_URL}/payment/${payment.id}`
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    const { status, body } = handleApiError(error);
-    return NextResponse.json(body, { status });
-  }
-} 
+export async function POST() {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Use /api/payment/initiate to create payment intents. This route is deprecated.',
+      code: 'DEPRECATED_ROUTE',
+    },
+    { status: 410 }
+  );
+}

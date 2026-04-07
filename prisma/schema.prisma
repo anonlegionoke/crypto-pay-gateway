@@ -25,18 +25,38 @@ model Merchant {
   payouts      Payout[]
 }
 
+enum PaymentStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+  EXPIRED
+}
+
+enum PaymentMode {
+  SIMULATION
+  REAL
+}
+
 model Payment {
-  id          String   @id @default(uuid())
-  merchantId  String
-  fromWallet  String   // The wallet that sent the payment
-  amount      Decimal  // Amount received
-  token       String   // SOL, USDT, etc.
-  status      String   
-  createdAt   DateTime @default(now())
+  id              String        @id @default(uuid())
+  merchantId      String
+  paymentAddress  String        // The address that should receive the payment
+  fromWallet      String?       // The wallet that sent the payment
+  amount          Decimal       // Amount requested
+  token           String        // SOL, USDT, etc.
+  mode            PaymentMode   @default(SIMULATION)
+  status          PaymentStatus @default(PENDING)
+  signature       String?       @unique
+  quoteAmountUSDC Decimal?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  payouts     Payout[]
+  payouts         Payout[]
 
-  Merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  Merchant        Merchant      @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, status, createdAt])
 }
 
 model Payout {

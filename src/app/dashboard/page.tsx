@@ -1,15 +1,51 @@
 'use client'
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useWalletInfo } from '@/hooks/useWalletInfo';
+
+interface MerchantPayment {
+  id: string;
+  amount: string;
+  token: string;
+  mode: 'SIMULATION' | 'REAL';
+  status: 'PENDING' | 'SUBMITTED' | 'CONFIRMED' | 'FAILED' | 'EXPIRED';
+  createdAt: string;
+}
 
 export default function Dashboard() {
   const router = useRouter();
   const { balance, transactions, loading, error, refreshWalletInfo } = useWalletInfo();
+  const [payments, setPayments] = useState<MerchantPayment[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
   
   // Only display the most recent 5 transactions
   const recentTransactions = transactions.slice(0, 5);
+  const recentPayments = payments.slice(0, 5);
+
+  useEffect(() => {
+    const fetchPayments = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const response = await fetch('/api/merchant/payments', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setPayments(data.payments || []);
+        }
+      } finally {
+        setPaymentsLoading(false);
+      }
+    };
+
+    fetchPayments();
+  }, []);
 
   return (
     <div className="p-6 px-4 md:px-8">
@@ -28,7 +64,7 @@ export default function Dashboard() {
         </button>
       </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-8xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 max-w-8xl mx-auto">
         <div className="p-8 bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl h-72 flex flex-col transition-all hover:shadow-2xl">
           <h2 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 flex items-center gap-2">
             <span className="text-amber-500">💰</span> Balance
@@ -78,6 +114,38 @@ export default function Dashboard() {
                         {tx.type === 'send' && (
                           <span className="text-xs text-green-600 dark:text-green-400 font-medium">Converted to USDC</span>
                         )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div className="p-8 bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl h-72 flex flex-col transition-all hover:shadow-2xl">
+          <h2 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+            <span className="text-violet-500">🧾</span> Payment Intents
+          </h2>
+          <div className="flex-1 overflow-hidden">
+            {paymentsLoading ? (
+              <div className="animate-pulse text-sm flex items-center justify-center h-full text-gray-400">Loading...</div>
+            ) : recentPayments.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-sm text-gray-500 dark:text-gray-400">
+                <p>No payment intents yet.</p>
+              </div>
+            ) : (
+              <ul className="text-sm space-y-3 w-full overflow-y-auto pr-2">
+                {recentPayments.map((payment) => (
+                  <li key={payment.id} className="border-b border-gray-100 dark:border-gray-800 pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-mono text-xs text-gray-500">{payment.id.slice(0, 8)}...</p>
+                        <p className="font-semibold text-gray-800 dark:text-gray-200">{payment.amount} {payment.token === 'So11111111111111111111111111111111111111112' ? 'SOL' : 'Token'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-medium">{payment.mode}</p>
+                        <p className="text-xs text-gray-500">{payment.status}</p>
                       </div>
                     </div>
                   </li>

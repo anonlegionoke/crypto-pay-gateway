@@ -3,7 +3,7 @@ import { QuoteResponse } from '@jup-ag/api';
 import { config } from '@/lib/config';
 
 // Constants - now using values from config
-const JUPITER_SWAP_API = config.jupiterApiUrl;
+const JUPITER_SWAP_API = `${config.jupiterApiBaseUrl}/swap/v1`;
 
 // RPC configuration
 const CONNECTION_CONFIG: ConnectionConfig = {
@@ -31,19 +31,17 @@ interface JupiterSwapResponse {
 export class TransactionService {
   readonly priceConnection: Connection;
   readonly txConnection: Connection;
+  readonly txFallbackConnections: Connection[];
 
   constructor() {
-    // Use the configured network for consistency between wallet, quoting, and sends.
-    this.priceConnection = new Connection(
-      config.rpcEndpoint,
-      CONNECTION_CONFIG
-    );
+    const [primaryRpc, fallbackRpc] = config.rpcFallbackEndpoints;
+    this.priceConnection = new Connection(primaryRpc, CONNECTION_CONFIG);
     
-    // For transactions, use the configured network endpoint
-    this.txConnection = new Connection(
-      config.rpcEndpoint,
-      CONNECTION_CONFIG
-    );
+    this.txConnection = new Connection(primaryRpc, CONNECTION_CONFIG);
+    this.txFallbackConnections = [
+      this.txConnection,
+      ...(fallbackRpc && fallbackRpc !== primaryRpc ? [new Connection(fallbackRpc, CONNECTION_CONFIG)] : []),
+    ];
     
     console.log(`TransactionService initialized with network: ${config.network}`);
   }
@@ -118,7 +116,10 @@ export class TransactionService {
       // 1. Get swap transaction from Jupiter API
       const swapResponse = await fetch(`${JUPITER_SWAP_API}/swap`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.jupiterApiKey ? { 'x-api-key': config.jupiterApiKey } : {}),
+        },
         body: JSON.stringify({
           quoteResponse: quote,
           userPublicKey: userPublicKey.toString(),
@@ -146,20 +147,24 @@ export class TransactionService {
 
   private async getLatestBlockhashWithRetry(retries = 3, delay = 1000): Promise<{ blockhash: string; lastValidBlockHeight: number }> {
     let lastError;
-    for (let i = 0; i < retries; i++) {
-      try {
-        const { blockhash, lastValidBlockHeight } = await this.txConnection.getLatestBlockhash(
-          config.confirmationOptions.commitment as Commitment
-        );
-        return { blockhash, lastValidBlockHeight };
-      } catch (error) {
-        console.warn(`Attempt ${i + 1} failed to get blockhash:`, error);
-        lastError = error;
-        if (i < retries - 1) {
-          await new Promise(resolve => setTimeout(resolve, delay));
+    for (let attempt = 0; attempt < retries; attempt++) {
+      for (const [index, connection] of this.txFallbackConnections.entries()) {
+        try {
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(
+            config.confirmationOptions.commitment as Commitment
+          );
+          return { blockhash, lastValidBlockHeight };
+        } catch (error) {
+          console.warn(`Attempt ${attempt + 1} failed to get blockhash from RPC ${index + 1}:`, error);
+          lastError = error;
         }
       }
+
+      if (attempt < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+
     throw lastError;
   }
 
