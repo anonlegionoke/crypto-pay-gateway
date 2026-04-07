@@ -8,6 +8,7 @@ import { useJupiter } from '@/hooks/useJupiter';
 import { useTransaction } from '@/hooks/useTransaction';
 import { PublicKey } from '@solana/web3.js';
 import { toast } from 'react-hot-toast';
+import { config } from '@/lib/config';
 
 // Common tokens (using mainnet addresses for price discovery)
 const TOKENS = [
@@ -32,8 +33,7 @@ export default function PayPage() {
     const [amount, setAmount] = useState('');
     const [usdcEquivalent, setUsdcEquivalent] = useState<number | null>(null);
     const [showScanner, setShowScanner] = useState(false);
-    const [lastUpdateTime, setLastUpdateTime] = useState(0);
-    const UPDATE_INTERVAL = 60000; // 1 minute in milliseconds
+    const isSimulationMode = !config.useRealJupiterSwaps;
 
     useEffect(() => {
         const updateUsdcEquivalent = async () => {
@@ -43,7 +43,6 @@ export default function PayPage() {
                     const price = await getPrice(new PublicKey(selectedToken.mint), Number(amount));
                     if (price) {
                         setUsdcEquivalent(price.outAmount);
-                        setLastUpdateTime(Date.now());
                     } else {
                         setUsdcEquivalent(null);
                     }
@@ -89,12 +88,14 @@ export default function PayPage() {
             }
 
             // 2. Execute the payment
-            // This creates a transaction that simulates a Jupiter swap on devnet
-            // In production environment, this would use executeJupiterSwap instead
             const result = await executePayment(quote.quoteResponse, recipientAddress);
             
             if (result.confirmed) {
-                toast.success(`Payment of ${amount} ${selectedToken.symbol} sent and converted to USDC!`);
+                if (result.mode === 'simulated') {
+                    toast.success(`Simulated transfer of ${amount} ${selectedToken.symbol} sent.`);
+                } else {
+                    toast.success(`Payment of ${amount} ${selectedToken.symbol} sent and converted to USDC!`);
+                }
                 // Clear form
                 setAmount('');
                 setRecipientAddress('');
@@ -150,7 +151,11 @@ export default function PayPage() {
                             ))}
                         </select>
                         <div className="mt-2 text-xs text-gray-500 font-medium ml-1">
-                            <span>* Pay with any token – merchant receives USDC via Jupiter swap</span>
+                            <span>
+                                {isSimulationMode
+                                    ? '* Simulation mode: SOL-only transfer for testing. Enable real swaps for token conversion.'
+                                    : '* Pay with any token – merchant receives USDC via Jupiter swap'}
+                            </span>
                         </div>
                     </div>
 

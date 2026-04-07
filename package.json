@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --test tests",
     "prebuild": "prisma generate",
     "postinstall": "prisma generate",
     "migrations:deploy": "prisma migrate deploy",

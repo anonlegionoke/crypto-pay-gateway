@@ -1,6 +1,5 @@
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, VersionedTransaction, Commitment, ConnectionConfig, TransactionInstruction } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, SystemProgram, VersionedTransaction, Commitment, ConnectionConfig, TransactionInstruction } from '@solana/web3.js';
 import { QuoteResponse } from '@jup-ag/api';
-import bs58 from 'bs58';
 import { config } from '@/lib/config';
 
 // Constants - now using values from config
@@ -20,6 +19,7 @@ interface SwapTransactionParams {
   quote: QuoteResponse;
   userPublicKey: PublicKey;
   recipientAddress: PublicKey;
+  inputMint?: string;
 }
 
 interface JupiterSwapResponse {
@@ -33,9 +33,9 @@ export class TransactionService {
   readonly txConnection: Connection;
 
   constructor() {
-    // For price discovery, we always use mainnet
+    // Use the configured network for consistency between wallet, quoting, and sends.
     this.priceConnection = new Connection(
-      'https://api.mainnet-beta.solana.com', 
+      config.rpcEndpoint,
       CONNECTION_CONFIG
     );
     
@@ -48,31 +48,33 @@ export class TransactionService {
     console.log(`TransactionService initialized with network: ${config.network}`);
   }
 
-  async createSwapTransaction({ quote, userPublicKey, recipientAddress }: SwapTransactionParams): Promise<Transaction> {
+  async createSwapTransaction({ quote, userPublicKey, recipientAddress, inputMint }: SwapTransactionParams): Promise<Transaction> {
     try {
       if (!quote || !userPublicKey || !recipientAddress) {
         throw new Error('Missing required parameters for swap transaction');
       }
 
-      // If we're in production and real Jupiter swaps are enabled, use Jupiter
-      if (config.isProduction && config.useRealJupiterSwaps) {
+      if (config.useRealJupiterSwaps) {
         throw new Error('For production, use createRealJupiterSwap instead of createSwapTransaction');
       }
-      
-      // This is for devnet testing - simulating a USDC transaction
+
+      // Simulation mode only supports SOL transfers to avoid fake conversion math.
+      if (!inputMint || inputMint !== config.tokenAddresses.SOL) {
+        throw new Error('Simulation mode supports SOL only. Enable real Jupiter swaps for SPL token payments.');
+      }
+
       const transaction = new Transaction();
-      
-      // The USDC amount that would result from a swap
-      const usdcAmount = Math.ceil(Number(quote.outAmount) / Math.pow(10, 6)); // Convert USDC amount from smallest unit
-      
-      // Calculate the SOL equivalent for testing (1 SOL = 100 USDC for simplicity)
-      const solAmount = Math.ceil(usdcAmount / 100 * LAMPORTS_PER_SOL);
+
+      const inLamports = Number(quote.inAmount);
+      if (!Number.isFinite(inLamports) || inLamports <= 0) {
+        throw new Error('Invalid quote amount for simulated transfer');
+      }
 
       // Add a transfer instruction to simulate the USDC settlement
       const transferInstruction = SystemProgram.transfer({
         fromPubkey: userPublicKey,
         toPubkey: recipientAddress,
-        lamports: solAmount,
+        lamports: Math.ceil(inLamports),
       });
 
       transaction.add(transferInstruction);
@@ -83,7 +85,7 @@ export class TransactionService {
       const memoInstruction = new TransactionInstruction({
         keys: [],
         programId: memoProgram,
-        data: Buffer.from(`Simulated Jupiter Swap: ${usdcAmount} USDC (${config.network})`),
+        data: Buffer.from(`Simulated payment transfer (${config.network})`),
       });
       
       transaction.add(memoInstruction);

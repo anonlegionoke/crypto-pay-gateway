@@ -15,12 +15,11 @@ const createPaymentSchema = z.object({
 
 export async function POST(request: NextRequest) {
   // Validate request
-  const validationResponse = await validateRequest(request, createPaymentSchema);
-  if (validationResponse) return validationResponse;
+  const validation = await validateRequest(request, createPaymentSchema);
+  if (validation.response) return validation.response;
+  const body = validation.data!;
 
   try {
-    const body = await request.json();
-    
     // Create payment in database
     const payment = await prisma.payment.create({
       data: {

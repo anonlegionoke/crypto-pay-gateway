@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { TransactionService } from '@/services/transaction.service';
 import { QuoteResponse } from '@jup-ag/api';
-import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { config } from '@/lib/config';
 
 export function useTransaction() {
-  const { publicKey, signTransaction, signAllTransactions, connected } = useWallet();
+  const { publicKey, signTransaction, connected } = useWallet();
   const [transactionService] = useState(() => new TransactionService());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export function useTransaction() {
 
     try {
       // Decide whether to use real Jupiter swaps or simulated swaps based on config
-      if (config.isProduction && config.useRealJupiterSwaps) {
+      if (config.useRealJupiterSwaps) {
         // In production with real Jupiter swaps enabled, use versionedTransaction
         console.log("Using real Jupiter swap for payment");
         return await executeJupiterSwapInternal(quote, recipientAddress);
@@ -37,6 +37,7 @@ export function useTransaction() {
           quote,
           userPublicKey: publicKey,
           recipientAddress: new PublicKey(recipientAddress),
+          inputMint: quote.inputMint,
         });
 
         // Sign the transaction
@@ -57,6 +58,7 @@ export function useTransaction() {
         return {
           signature,
           confirmed: true,
+          mode: 'simulated' as const,
         };
       }
     } catch (err) {
@@ -103,6 +105,7 @@ export function useTransaction() {
       return {
         signature,
         confirmed: true,
+        mode: 'real' as const,
       };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Swap failed';

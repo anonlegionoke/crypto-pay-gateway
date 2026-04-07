@@ -33,8 +33,16 @@ export async function POST(request: Request) {
              ...(solanaWallet && { solanaWallet })
          }
      })
- 
-     return NextResponse.json({message: "Merchant registration successful", merchant, status: 201});
+
+     const safeMerchant = {
+       id: merchant.id,
+       email: merchant.email,
+       name: merchant.name,
+       solanaWallet: merchant.solanaWallet,
+       createdAt: merchant.createdAt,
+     };
+
+     return NextResponse.json({message: "Merchant registration successful", merchant: safeMerchant, status: 201});
    } catch (error) {
      return NextResponse.json({message: "Merchant registration failed", error, status: 500});
    }

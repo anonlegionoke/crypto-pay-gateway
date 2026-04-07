@@ -22,12 +22,20 @@ export async function GET(request: NextRequest) {
 
     const merchant = await prisma.merchant.findUnique({
         where:{
-            id: decoded.merchant}
+            id: decoded.merchantId}
     })
 
     if (!merchant) { 
         return NextResponse.json({ message: "Merchant not found" }, { status: 404 });
     }
 
-    return NextResponse.json({merchant});
+    const safeMerchant = {
+      id: merchant.id,
+      email: merchant.email,
+      name: merchant.name,
+      solanaWallet: merchant.solanaWallet,
+      createdAt: merchant.createdAt,
+    };
+
+    return NextResponse.json({merchant: safeMerchant});
 }
