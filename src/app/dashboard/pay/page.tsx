@@ -66,7 +66,7 @@ export default function PayPage() {
         }, 500); // Debounce for typing
 
         return () => clearTimeout(debounceTimeout);
-    }, [amount, selectedToken, getPrice]);
+    }, [amount, selectedToken.mint]);
 
     const handleScanSuccess = (address: string) => {
         setRecipientAddress(address);

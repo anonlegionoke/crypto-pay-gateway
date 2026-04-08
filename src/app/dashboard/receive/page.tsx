@@ -69,6 +69,12 @@ export default function ReceivePage() {
 
             const data = await response.json();
             if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('merchantInfo');
+                    window.dispatchEvent(new Event('auth-changed'));
+                    router.push('/login');
+                }
                 throw new Error(data.error || 'Failed to create payment intent');
             }
 

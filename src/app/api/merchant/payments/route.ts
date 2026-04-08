@@ -16,10 +16,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
   }
 
+  const searchParams = request.nextUrl.searchParams;
+  const requestedLimit = Number(searchParams.get('limit') || '100');
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.min(200, requestedLimit))
+    : 100;
+  const cursor = searchParams.get('cursor');
+
   const payments = await prisma.payment.findMany({
     where: { merchantId: merchant.merchantId },
     orderBy: { createdAt: 'desc' },
-    take: 20,
+    take: limit + 1,
+    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     select: {
       id: true,
       amount: true,
@@ -33,11 +41,19 @@ export async function GET(request: NextRequest) {
     },
   });
 
+  const hasMore = payments.length > limit;
+  const pagePayments = hasMore ? payments.slice(0, limit) : payments;
+
   return NextResponse.json({
-    payments: payments.map((payment) => ({
+    payments: pagePayments.map((payment) => ({
       ...payment,
       amount: payment.amount.toString(),
       quoteAmountUSDC: undefined,
     })),
+    pageInfo: {
+      hasMore,
+      nextCursor: hasMore ? pagePayments[pagePayments.length - 1]?.id ?? null : null,
+      limit,
+    },
   });
 }
