@@ -1,29 +1,57 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const AUTH_STORAGE_KEY = 'token';
+const MERCHANT_STORAGE_KEY = 'merchantInfo';
+const AUTH_EVENT = 'auth-changed';
+
 export const useAuth = () => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
     const router = useRouter();
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        setIsAuthenticated(!!token);
-        
-        if (!token) {
-            router.push('/login');
-        }
+        const syncAuthState = () => {
+            const token = localStorage.getItem(AUTH_STORAGE_KEY);
+            setIsAuthenticated(!!token);
+
+            if (!token) {
+                router.push('/login');
+            }
+        };
+
+        syncAuthState();
+
+        const handleStorage = (event: StorageEvent) => {
+            if (!event.key || event.key === AUTH_STORAGE_KEY || event.key === MERCHANT_STORAGE_KEY) {
+                syncAuthState();
+            }
+        };
+
+        const handleAuthChanged = () => {
+            syncAuthState();
+        };
+
+        window.addEventListener('storage', handleStorage);
+        window.addEventListener(AUTH_EVENT, handleAuthChanged);
+
+        return () => {
+            window.removeEventListener('storage', handleStorage);
+            window.removeEventListener(AUTH_EVENT, handleAuthChanged);
+        };
     }, [router]);
 
     const login = (token: string, merchant:string) => {
-        localStorage.setItem('token', token);
-        localStorage.setItem('merchantInfo', merchant);
+        localStorage.setItem(AUTH_STORAGE_KEY, token);
+        localStorage.setItem(MERCHANT_STORAGE_KEY, merchant);
         setIsAuthenticated(true);
+        window.dispatchEvent(new Event(AUTH_EVENT));
     };
 
     const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('merchantInfo');
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        localStorage.removeItem(MERCHANT_STORAGE_KEY);
         setIsAuthenticated(false);
+        window.dispatchEvent(new Event(AUTH_EVENT));
         router.push('/login');
     };
 

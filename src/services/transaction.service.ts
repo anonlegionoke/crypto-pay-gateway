@@ -28,6 +28,16 @@ interface JupiterSwapResponse {
   additionalMessage?: string;
 }
 
+interface TransactionConfirmationContext {
+  blockhash: string;
+  lastValidBlockHeight: number;
+}
+
+interface SignatureStatusResult {
+  confirmationStatus?: 'processed' | 'confirmed' | 'finalized' | null;
+  err: unknown;
+}
+
 export class TransactionService {
   readonly priceConnection: Connection;
   readonly txConnection: Connection;
@@ -111,7 +121,10 @@ export class TransactionService {
   }
 
   // This would be used in production to create a real Jupiter swap transaction
-  async createRealJupiterSwap({ quote, userPublicKey, recipientAddress }: SwapTransactionParams): Promise<VersionedTransaction> {
+  async createRealJupiterSwap({ quote, userPublicKey, recipientAddress }: SwapTransactionParams): Promise<{
+    transaction: VersionedTransaction;
+    confirmationContext: TransactionConfirmationContext;
+  }> {
     try {
       // 1. Get swap transaction from Jupiter API
       const swapResponse = await fetch(`${JUPITER_SWAP_API}/swap`, {
@@ -132,13 +145,19 @@ export class TransactionService {
         throw new Error(error.error || 'Failed to get swap transaction');
       }
 
-      const { swapTransaction } = await swapResponse.json() as JupiterSwapResponse;
+      const { swapTransaction, lastValidBlockHeight } = await swapResponse.json() as JupiterSwapResponse;
       
       // 2. Deserialize transaction
       const transactionBuffer = Buffer.from(swapTransaction, 'base64');
       const versionedTransaction = VersionedTransaction.deserialize(transactionBuffer);
       
-      return versionedTransaction;
+      return {
+        transaction: versionedTransaction,
+        confirmationContext: {
+          blockhash: versionedTransaction.message.recentBlockhash,
+          lastValidBlockHeight,
+        },
+      };
     } catch (error) {
       console.error('Error creating Jupiter swap:', error);
       throw error;
@@ -168,20 +187,43 @@ export class TransactionService {
     throw lastError;
   }
 
-  async confirmTransaction(signature: string): Promise<boolean> {
-    try {
-      const { blockhash, lastValidBlockHeight } = await this.getLatestBlockhashWithRetry();
-      const result = await this.txConnection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight,
-      });
+  async confirmTransaction(signature: string, confirmationContext: TransactionConfirmationContext): Promise<boolean> {
+    const deadline = Date.now() + 45_000;
 
-      return !result.value.err;
-    } catch (error) {
-      console.error('Error confirming transaction:', error);
-      return false;
+    while (Date.now() < deadline) {
+      for (const [index, connection] of this.txFallbackConnections.entries()) {
+        try {
+          const statusResponse = await connection.getSignatureStatus(signature, {
+            searchTransactionHistory: true,
+          });
+          const status = statusResponse.value as SignatureStatusResult | null;
+
+          if (status?.err) {
+            return false;
+          }
+
+          if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
+            return true;
+          }
+
+          const currentBlockHeight = await connection.getBlockHeight(
+            config.confirmationOptions.commitment as Commitment
+          );
+
+          if (currentBlockHeight > confirmationContext.lastValidBlockHeight) {
+            console.warn('Transaction expired before confirmation');
+            return false;
+          }
+        } catch (error) {
+          console.warn(`Confirmation polling failed on RPC ${index + 1}:`, error);
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
     }
+
+    console.error('Transaction confirmation timed out');
+    return false;
   }
 
   async getTransactionStatus(signature: string) {
@@ -192,6 +234,21 @@ export class TransactionService {
       console.error('Error getting transaction status:', error);
       throw error;
     }
+  }
+
+  async getBalance(publicKey: PublicKey): Promise<number> {
+    let lastError: unknown;
+
+    for (const [index, connection] of this.txFallbackConnections.entries()) {
+      try {
+        return await connection.getBalance(publicKey, config.confirmationOptions.commitment as Commitment);
+      } catch (error) {
+        console.warn(`Failed to fetch balance from RPC ${index + 1}:`, error);
+        lastError = error;
+      }
+    }
+
+    throw lastError ?? new Error('Failed to fetch wallet balance');
   }
 
   async sendRawTransaction(rawTransaction: Buffer): Promise<string> {

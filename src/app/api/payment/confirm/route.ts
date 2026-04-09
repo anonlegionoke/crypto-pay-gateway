@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/error-handler';
 import { validateRequest } from '@/middleware/validation';
 import { verifyPaymentOnChain } from '@/lib/payment-verification';
+import { ensurePayoutForConfirmedPayment } from '@/lib/payouts';
 
 const confirmPaymentSchema = z.object({
   paymentId: z.string().uuid(),
@@ -62,6 +63,9 @@ export async function POST(request: NextRequest) {
       where: { id: body.paymentId },
       select: {
         id: true,
+        amount: true,
+        token: true,
+        mode: true,
         paymentAddress: true,
         fromWallet: true,
         signature: true,
@@ -78,6 +82,9 @@ export async function POST(request: NextRequest) {
       signature: storedPayment.signature,
       paymentAddress: storedPayment.paymentAddress,
       fromWallet: storedPayment.fromWallet,
+      expectedAmount: storedPayment.amount.toString(),
+      expectedToken: storedPayment.token,
+      mode: storedPayment.mode,
     });
 
     const verifiedPayment = await prisma.payment.update({
@@ -92,9 +99,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const payout = verifiedPayment.status === 'CONFIRMED'
+      ? await ensurePayoutForConfirmedPayment(body.paymentId)
+      : null;
+
     return NextResponse.json({
       success: true,
       payment: verifiedPayment,
+      payout,
       verification,
     });
   } catch (error) {

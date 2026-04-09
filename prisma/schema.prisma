@@ -62,7 +62,7 @@ model Payment {
 model Payout {
   id          String   @id @default(uuid())
   merchantId  String   
-  paymentId   String  
+  paymentId   String   @unique
   amountUSDC  Decimal  // Final USDC amount sent after swap
   toWallet    String   // Merchant’s wallet
   status      String   

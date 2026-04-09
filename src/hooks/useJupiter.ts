@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { QuoteResponse } from '@jup-ag/api';
 import { Connection, PublicKey, ConnectionConfig, Commitment } from '@solana/web3.js';
 import { config } from '@/lib/config';
@@ -114,7 +114,7 @@ export function useJupiter() {
     }, []);
 
     // Helper function to fetch with retries
-    const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3, delay = 500) => {
+    const fetchWithRetry = useCallback(async (url: string, options?: RequestInit, retries = 3, delay = 500) => {
         let lastError;
         let currentEndpointIndex = 0;
         
@@ -189,9 +189,9 @@ export function useJupiter() {
         }
         
         throw lastError;
-    };
+    }, []);
 
-    const getPrice = async (inputMint: PublicKey, inputAmount: number): Promise<PriceInfo | null> => {
+    const getPrice = useCallback(async (inputMint: PublicKey, inputAmount: number): Promise<PriceInfo | null> => {
         try {
             setError(null);
             setPriceLoading(true);
@@ -343,9 +343,9 @@ export function useJupiter() {
         } finally {
             setPriceLoading(false);
         }
-    };
+    }, [fetchWithRetry, priceCache, priceConnection]);
 
-    const executeSwap = async (quote: QuoteResponse) => {
+    const executeSwap = useCallback(async (quote: QuoteResponse) => {
         try {
             setLoading(true);
             setError(null);
@@ -374,7 +374,7 @@ export function useJupiter() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [fetchWithRetry]);
 
     return {
         loading,

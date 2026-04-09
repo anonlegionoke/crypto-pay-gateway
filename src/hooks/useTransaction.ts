@@ -5,6 +5,9 @@ import { QuoteResponse } from '@jup-ag/api';
 import { PublicKey } from '@solana/web3.js';
 import { config } from '@/lib/config';
 
+const LAMPORTS_PER_SOL = 1_000_000_000;
+const SIMULATION_FEE_BUFFER_LAMPORTS = 10_000;
+
 export function useTransaction() {
   const { publicKey, signTransaction, connected } = useWallet();
   const [transactionService] = useState(() => new TransactionService());
@@ -33,6 +36,22 @@ export function useTransaction() {
       } else {
         // In development or testing, use simulated swap
         console.log("Using simulated swap for payment on", config.network);
+
+        const requiredLamports = Number(quote.inAmount);
+        if (!Number.isFinite(requiredLamports) || requiredLamports <= 0) {
+          throw new Error('Invalid payment amount returned by quote service');
+        }
+
+        const currentBalance = await transactionService.getBalance(publicKey);
+        const minimumRequiredLamports = requiredLamports + SIMULATION_FEE_BUFFER_LAMPORTS;
+
+        if (currentBalance < minimumRequiredLamports) {
+          const availableSol = currentBalance / LAMPORTS_PER_SOL;
+          const requiredSol = minimumRequiredLamports / LAMPORTS_PER_SOL;
+          throw new Error(
+            `Insufficient SOL balance. Need about ${requiredSol.toFixed(6)} SOL, but wallet has ${availableSol.toFixed(6)} SOL.`
+          );
+        }
         
         // Create the transaction (simulated swap for development)
         const transaction = await transactionService.createSwapTransaction({
@@ -50,8 +69,15 @@ export function useTransaction() {
           Buffer.from(signedTransaction.serialize())
         );
 
+        if (!transaction.recentBlockhash || typeof transaction.lastValidBlockHeight !== 'number') {
+          throw new Error('Transaction confirmation context was not set');
+        }
+
         // Confirm the transaction
-        const confirmed = await transactionService.confirmTransaction(signature);
+        const confirmed = await transactionService.confirmTransaction(signature, {
+          blockhash: transaction.recentBlockhash,
+          lastValidBlockHeight: transaction.lastValidBlockHeight,
+        });
 
         if (!confirmed) {
           throw new Error('Transaction failed');
@@ -85,7 +111,7 @@ export function useTransaction() {
 
     try {
       // 1. Create the versioned transaction
-      const versionedTransaction = await transactionService.createRealJupiterSwap({
+      const { transaction: versionedTransaction, confirmationContext } = await transactionService.createRealJupiterSwap({
         quote,
         userPublicKey: publicKey,
         recipientAddress: new PublicKey(recipientAddress),
@@ -100,7 +126,7 @@ export function useTransaction() {
       );
 
       // 4. Confirm the transaction
-      const confirmed = await transactionService.confirmTransaction(signature);
+      const confirmed = await transactionService.confirmTransaction(signature, confirmationContext);
 
       if (!confirmed) {
         throw new Error('Transaction failed');

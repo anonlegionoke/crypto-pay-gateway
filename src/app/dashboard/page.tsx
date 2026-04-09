@@ -17,35 +17,114 @@ export default function Dashboard() {
   const router = useRouter();
   const { balance, transactions, loading, error, refreshWalletInfo } = useWalletInfo();
   const [payments, setPayments] = useState<MerchantPayment[]>([]);
+  const [paymentsNextCursor, setPaymentsNextCursor] = useState<string | null>(null);
+  const [paymentsHasMore, setPaymentsHasMore] = useState(false);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
+  const [paymentsError, setPaymentsError] = useState<string | null>(null);
   
   // Only display the most recent 5 transactions
   const recentTransactions = transactions.slice(0, 5);
-  const recentPayments = payments.slice(0, 5);
 
   useEffect(() => {
-    const fetchPayments = async () => {
+    const fetchPayments = async (cursor?: string | null, append = false) => {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setPayments([]);
+        setPaymentsNextCursor(null);
+        setPaymentsHasMore(false);
+        setPaymentsLoading(false);
+        return;
+      }
 
       try {
-        const response = await fetch('/api/merchant/payments', {
+        setPaymentsLoading(true);
+        setPaymentsError(null);
+
+        const params = new URLSearchParams({ limit: '100' });
+        if (cursor) {
+          params.set('cursor', cursor);
+        }
+
+        const response = await fetch(`/api/merchant/payments?${params.toString()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         });
 
         const data = await response.json();
-        if (response.ok) {
-          setPayments(data.payments || []);
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('merchantInfo');
+          window.dispatchEvent(new Event('auth-changed'));
+          setPayments([]);
+          setPaymentsNextCursor(null);
+          setPaymentsHasMore(false);
+          return;
         }
+
+        if (!response.ok) {
+          throw new Error(data.message || data.error || 'Failed to load payment intents');
+        }
+        const nextPayments = data.payments || [];
+        setPayments((prev) => (append ? [...prev, ...nextPayments] : nextPayments));
+        setPaymentsNextCursor(data.pageInfo?.nextCursor ?? null);
+        setPaymentsHasMore(Boolean(data.pageInfo?.hasMore));
+      } catch (fetchError) {
+        setPaymentsError(fetchError instanceof Error ? fetchError.message : 'Failed to load payment intents');
       } finally {
         setPaymentsLoading(false);
       }
     };
 
-    fetchPayments();
+    const syncPayments = () => {
+      fetchPayments(null, false);
+    };
+
+    syncPayments();
+
+    window.addEventListener('auth-changed', syncPayments);
+    window.addEventListener('focus', syncPayments);
+
+    return () => {
+      window.removeEventListener('auth-changed', syncPayments);
+      window.removeEventListener('focus', syncPayments);
+    };
   }, []);
+
+  const loadMorePayments = async () => {
+    if (!paymentsNextCursor || paymentsLoading) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    setPaymentsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        limit: '100',
+        cursor: paymentsNextCursor,
+      });
+
+      const response = await fetch(`/api/merchant/payments?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Failed to load more payment intents');
+      }
+
+      const nextPayments = data.payments || [];
+      setPayments((prev) => [...prev, ...nextPayments]);
+      setPaymentsNextCursor(data.pageInfo?.nextCursor ?? null);
+      setPaymentsHasMore(Boolean(data.pageInfo?.hasMore));
+    } catch (fetchError) {
+      setPaymentsError(fetchError instanceof Error ? fetchError.message : 'Failed to load more payment intents');
+    } finally {
+      setPaymentsLoading(false);
+    }
+  };
 
   return (
     <div className="p-6 px-4 md:px-8">
@@ -130,27 +209,42 @@ export default function Dashboard() {
           <div className="flex-1 overflow-hidden">
             {paymentsLoading ? (
               <div className="animate-pulse text-sm flex items-center justify-center h-full text-gray-400">Loading...</div>
-            ) : recentPayments.length === 0 ? (
+            ) : paymentsError ? (
+              <div className="flex items-center justify-center h-full text-sm text-red-500">
+                <p>{paymentsError}</p>
+              </div>
+            ) : payments.length === 0 ? (
               <div className="flex items-center justify-center h-full text-sm text-gray-500 dark:text-gray-400">
                 <p>No payment intents yet.</p>
               </div>
             ) : (
-              <ul className="text-sm space-y-3 w-full overflow-y-auto pr-2">
-                {recentPayments.map((payment) => (
-                  <li key={payment.id} className="border-b border-gray-100 dark:border-gray-800 pb-3 last:border-0 last:pb-0">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-mono text-xs text-gray-500">{payment.id.slice(0, 8)}...</p>
-                        <p className="font-semibold text-gray-800 dark:text-gray-200">{payment.amount} {payment.token === 'So11111111111111111111111111111111111111112' ? 'SOL' : 'Token'}</p>
+              <div className="h-full flex flex-col">
+                <ul className="text-sm space-y-3 w-full overflow-y-auto pr-2 flex-1">
+                  {payments.map((payment) => (
+                    <li key={payment.id} className="border-b border-gray-100 dark:border-gray-800 pb-3 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-mono text-xs text-gray-500">{payment.id.slice(0, 8)}...</p>
+                          <p className="font-semibold text-gray-800 dark:text-gray-200">{payment.amount} {payment.token === 'So11111111111111111111111111111111111111112' ? 'SOL' : 'Token'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-medium">{payment.mode}</p>
+                          <p className="text-xs text-gray-500">{payment.status}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-medium">{payment.mode}</p>
-                        <p className="text-xs text-gray-500">{payment.status}</p>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                    </li>
+                  ))}
+                </ul>
+                {paymentsHasMore && (
+                  <button
+                    onClick={loadMorePayments}
+                    disabled={paymentsLoading}
+                    className="mt-3 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-medium"
+                  >
+                    {paymentsLoading ? 'Loading...' : 'Load More'}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

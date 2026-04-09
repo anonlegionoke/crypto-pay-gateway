@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { WalletButton } from "@/components/WalletButton";
 
+const AUTH_EVENT = 'auth-changed';
+
 export default function DashboardLayout({
     children,
 }: {
@@ -13,10 +15,20 @@ export default function DashboardLayout({
     const [merchantInfo, setMerchantInfo] = useState<any>(null);
 
     useEffect(() => {
-        const storedInfo = localStorage.getItem('merchantInfo');
-        if (storedInfo) {
-            setMerchantInfo(JSON.parse(storedInfo));
-        }
+        const syncMerchantInfo = () => {
+            const storedInfo = localStorage.getItem('merchantInfo');
+            setMerchantInfo(storedInfo ? JSON.parse(storedInfo) : null);
+        };
+
+        syncMerchantInfo();
+
+        window.addEventListener(AUTH_EVENT, syncMerchantInfo);
+        window.addEventListener('storage', syncMerchantInfo);
+
+        return () => {
+            window.removeEventListener(AUTH_EVENT, syncMerchantInfo);
+            window.removeEventListener('storage', syncMerchantInfo);
+        };
     }, []);
 
     if (isAuthenticated === null || !isAuthenticated) {
