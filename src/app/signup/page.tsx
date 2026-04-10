@@ -3,6 +3,8 @@
 import { useState } from "react"
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 export default function Signup() {
     const router = useRouter();
@@ -53,8 +55,11 @@ export default function Signup() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-gray-100 dark:to-gray-900 text-foreground transition-colors duration-300 p-4">
-            <h1 className="mb-8 font-bold text-4xl text-center">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50 dark:bg-[#0A0A0A] text-foreground transition-colors duration-300 p-4 relative">
+            <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors font-medium bg-white/50 dark:bg-black/30 backdrop-blur-sm px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 shadow-sm">
+                <ArrowLeft className="w-4 h-4" /> Back to Home
+            </Link>
+            <h1 className="mb-8 font-bold text-4xl text-center mt-12 sm:mt-0">
                 Sign up to <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">Crypto Gate</span>
             </h1>
             <form className="flex flex-col w-full max-w-md bg-white/70 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-2xl p-8 rounded-2xl" onSubmit={handleSignUp}>

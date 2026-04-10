@@ -16,7 +16,8 @@ const SOLANA_NETWORK = (
 ) as 'devnet' | 'mainnet-beta' | 'testnet';
 
 // Jupiter API configuration
-const JUPITER_API_BASE_URL = process.env.NEXT_PUBLIC_JUPITER_API_URL || 'https://lite-api.jup.ag';
+const normalizeBaseUrl = (url: string) => url.replace(/\/$/, '').replace(/\/swap\/v\d+$/, '');
+const JUPITER_API_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_JUPITER_API_URL || 'https://api.jup.ag');
 const JUPITER_API_KEY = process.env.NEXT_PUBLIC_JUPITER_API_KEY || process.env.JUPITER_API_KEY || '';
 
 // RPC Endpoints
@@ -56,7 +57,10 @@ export const config = {
     RPC_ENDPOINTS[SOLANA_NETWORK as keyof typeof RPC_ENDPOINTS],
   ].filter((endpoint, index, endpoints): endpoint is string => Boolean(endpoint) && endpoints.indexOf(endpoint) === index),
   jupiterApiBaseUrl: JUPITER_API_BASE_URL,
+  jupiterSwapV2ApiBaseUrl: `${JUPITER_API_BASE_URL}/swap/v2`,
   jupiterApiKey: JUPITER_API_KEY,
+  hasJupiterApiKey: Boolean(JUPITER_API_KEY),
+  supportsRealJupiterSwaps: Boolean(JUPITER_API_KEY) && SOLANA_NETWORK === 'mainnet-beta',
   tokenAddresses: TOKEN_ADDRESSES,
   confirmationOptions: CONFIRMATION_OPTIONS,
   // In production this should be explicitly true only when fully ready for real settlement.

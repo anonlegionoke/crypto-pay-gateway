@@ -5,12 +5,18 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { config } from '@/lib/config';
 
-const TOKENS = [
-    { symbol: 'SOL', name: 'Solana', mint: 'So11111111111111111111111111111111111111112' },
-    { symbol: 'USDC', name: 'USD Coin', mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
-    { symbol: 'BONK', name: 'Bonk', mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
-];
+const TOKENS = config.network === 'mainnet-beta'
+    ? [
+        { symbol: 'SOL', name: 'Solana', mint: 'So11111111111111111111111111111111111111112' },
+        { symbol: 'USDC', name: 'USD Coin', mint: config.tokenAddresses.USDC[config.network] },
+        { symbol: 'BONK', name: 'Bonk', mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
+      ]
+    : [
+        { symbol: 'SOL', name: 'Solana', mint: 'So11111111111111111111111111111111111111112' },
+        { symbol: 'USDC', name: 'USD Coin', mint: config.tokenAddresses.USDC[config.network] },
+      ];
 
 interface PaymentIntent {
     paymentId: string;
@@ -28,8 +34,15 @@ export default function ReceivePage() {
     const [mode, setMode] = useState<'SIMULATION' | 'REAL'>('SIMULATION');
     const [selectedToken, setSelectedToken] = useState(TOKENS[0]);
     const [paymentIntent, setPaymentIntent] = useState<PaymentIntent | null>(null);
+    const realSwapAvailable = config.supportsRealJupiterSwaps;
+    const realSwapDisabledReason = !config.hasJupiterApiKey
+        ? 'Live settlement mode requires a Jupiter API key in your environment.'
+        : 'Live settlement mode currently requires mainnet-beta because the devnet USDC route is not tradable via Jupiter in this app.';
 
     const walletAddress = publicKey?.toString() || '';
+    const checkoutUrl = paymentIntent && typeof window !== 'undefined'
+        ? `${window.location.origin}/pay/${paymentIntent.paymentId}`
+        : '';
 
     const handleCopy = async (value: string) => {
         await navigator.clipboard.writeText(value);
@@ -48,6 +61,11 @@ export default function ReceivePage() {
 
         if (!publicKey) {
             toast.error('Please connect your wallet first');
+            return;
+        }
+
+        if (mode === 'REAL' && !realSwapAvailable) {
+            toast.error(realSwapDisabledReason);
             return;
         }
 
@@ -79,25 +97,12 @@ export default function ReceivePage() {
             }
 
             setPaymentIntent(data);
-            toast.success('Payment intent created');
+            toast.success(mode === 'REAL' ? 'Live checkout link created' : 'Payment intent created');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to create payment intent');
         } finally {
             setCreating(false);
         }
-    };
-
-    const openPayerDemo = () => {
-        if (!paymentIntent) return;
-
-        const params = new URLSearchParams({
-            paymentId: paymentIntent.paymentId,
-            recipient: paymentIntent.paymentAddress,
-            amount,
-            tokenMint: selectedToken.mint,
-            mode: paymentIntent.mode,
-        });
-        router.push(`/dashboard/pay?${params.toString()}`);
     };
 
     if (!publicKey) {
@@ -120,6 +125,9 @@ export default function ReceivePage() {
                     ←
                 </button>
                 <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">Receive Payment</h1>
+                <span className="ml-auto inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                    {config.network}
+                </span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -172,19 +180,20 @@ export default function ReceivePage() {
                                 <button
                                     type="button"
                                     onClick={() => setMode('REAL')}
+                                    disabled={!realSwapAvailable}
                                     className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-colors ${
                                         mode === 'REAL'
                                             ? 'bg-blue-500 text-white border-blue-400'
                                             : 'bg-gray-50 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700'
-                                    }`}
+                                    } disabled:opacity-60`}
                                 >
-                                    Real Swap
+                                    Live Settlement
                                 </button>
                             </div>
                         </div>
 
                         <div>
-                            <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Settlement Wallet</label>
+                            <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Merchant Wallet</label>
                             <div className="px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 font-mono text-sm break-all">
                                 {walletAddress}
                             </div>
@@ -207,7 +216,7 @@ export default function ReceivePage() {
                             <div className="flex flex-col items-center space-y-6">
                                 <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
                                     <QRCodeSVG
-                                        value={paymentIntent.paymentAddress}
+                                        value={checkoutUrl}
                                         size={220}
                                         level="H"
                                     />
@@ -219,25 +228,22 @@ export default function ReceivePage() {
                                         <p className="font-mono text-sm break-all">{paymentIntent.paymentId}</p>
                                     </div>
                                     <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/80">
-                                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Destination Wallet</p>
-                                        <p className="font-mono text-sm break-all">{paymentIntent.paymentAddress}</p>
+                                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Public Checkout</p>
+                                        <p className="font-mono text-sm break-all">{checkoutUrl}</p>
                                     </div>
                                 </div>
 
                                 <div className="flex gap-3 w-full">
                                     <button
-                                        onClick={() => handleCopy(paymentIntent.paymentAddress)}
-                                        className="flex-1 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                                        onClick={() => handleCopy(checkoutUrl)}
+                                        className="w-full px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                                     >
-                                        {copied ? 'Copied!' : 'Copy Address'}
-                                    </button>
-                                    <button
-                                        onClick={openPayerDemo}
-                                        className="flex-1 px-5 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold"
-                                    >
-                                        Open Payer Demo
+                                        {copied ? 'Copied!' : 'Copy Checkout Link'}
                                     </button>
                                 </div>
+                                <p className="w-full text-sm text-center text-gray-500 dark:text-gray-400">
+                                    Share this checkout link with the customer so they can open it and complete the payment from their wallet.
+                                </p>
                             </div>
                         </div>
                     ) : (

@@ -1,115 +1,139 @@
-# Crypto Payment Gateway
+# Crypto Gate
 
-A secure payment gateway for accepting cryptocurrency payments on Solana. Merchants can accept payments in any token while automatically receiving USDC in their settlement account thanks to Jupiter swap integration.
+Crypto Gate is a Solana merchant checkout gateway.
+
+It gives merchants a private dashboard to create payment intents and share public checkout links. Customers open the checkout, connect a wallet, and complete the payment flow on-chain.
+
+## What This Project Is Today
+
+- A polished devnet simulation demo for merchant crypto checkout
+- A shared payment gateway architecture for both simulation and live settlement modes
+- A Jupiter-backed live settlement path designed to be enabled by environment configuration
+
+## What It Does
+
+1. Merchant signs up and logs in
+2. Merchant creates a payment intent
+3. Merchant shares a public checkout link
+4. Customer opens the public checkout and connects a wallet
+5. Customer pays from wallet
+6. Backend confirms the payment and records settlement/payout data
+
+## Settlement Modes
+
+### Simulation Settlement
+
+This is the primary demo mode and the recommended way to run the project locally.
+
+- Runs on `devnet`
+- Uses a real on-chain SOL transfer for the customer payment step
+- Records a USDC-equivalent settlement value in the backend
+- Does **not** credit real USDC to the merchant wallet on-chain
+
+### Live Settlement
+
+This is the architecture path for live settlement.
+
+- Intended for `mainnet-beta`
+- Uses Jupiter to route a supported Solana token into merchant USDC settlement
+- Requires Jupiter API access and live mainnet assets
+- The code path is configuration-driven, but should still be validated with a production smoke test before being treated as live-ready
 
 ## Core Features
 
-- **Multi-Token Acceptance**: Accept payments in SOL, USDC, and any other Solana token
-- **Automatic Token Swaps**: Seamlessly converts incoming tokens to USDC using Jupiter Exchange
-- **Merchant Dashboard**: Track balance and transaction history
-- **QR Code Payment Flow**: Generate and scan QR codes for easy payments
-- **Security & Rate Limiting**: Production-grade security features
-- **Error Handling**: Robust error handling with fallbacks and retries
+- Merchant auth with protected dashboard
+- Payment intent creation and public checkout links
+- Wallet-based payer checkout flow
+- Shared gateway flow for simulation and live settlement modes
+- On-chain confirmation and payout record creation
+- Dashboard metrics for wallet USDC, gateway USDC, confirmed payments, and pending intents
+- Rate limiting, validation, and safer API contracts
 
-## Technical Architecture
+## Tech Stack
 
-- **Frontend**: Next.js App Router, React 19, TailwindCSS
-- **Authentication**: JWT with secure storage and middleware protection
-- **Database**: PostgreSQL with Prisma ORM
-- **Blockchain**: Solana Web3.js for wallet interactions and transactions
-- **Swaps**: Jupiter API for cross-token swaps with price discovery
-- **Security**: Rate limiting, CSRF protection, input validation, secure headers
-- **Containerization**: Docker and Docker Compose for easy deployment
+- Next.js App Router
+- React 19
+- Tailwind CSS
+- Prisma + PostgreSQL
+- Solana Web3.js
+- Jupiter Swap APIs
+- JWT auth
+- Upstash-compatible rate limiting middleware
 
-## How It Works
-
-1. **For Customers**:
-   - Select token to pay with (SOL, USDC, etc.)
-   - Scan QR code or copy wallet address
-   - Make payment through their Solana wallet
-
-2. **For Merchants**:
-   - Receive notification of incoming payment
-   - Payment is automatically swapped to USDC via Jupiter
-   - Settlement is credited to merchant account
-   - Transaction appears in dashboard history
-
-## Production Deployment Guide
+## Local Development
 
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL database
-- Solana wallet with SOL for transaction fees
-- Domain with SSL certificate for secure connections
+- PostgreSQL
+- A Solana wallet such as Phantom
 
-### Environment Setup
+### Install
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/crypto-pay-gateway.git
-   cd crypto-pay-gateway
-   ```
+```bash
+npm install
+```
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+### Environment
 
-3. Generate secure JWT secret:
-   ```
-   node scripts/generate-secrets.js
-   ```
+For the recommended local simulation setup:
 
-4. Configure the environment variables:
-   - Create a `.env.production` file based on `.env.example`
-   - Set the database connection string
-   - Configure Solana RPC endpoint (preferably a private one)
-   - Set your domain for CORS configuration
+```env
+NEXT_PUBLIC_SOLANA_NETWORK="devnet"
+NEXT_PUBLIC_SOLANA_RPC_URL="https://api.devnet.solana.com"
+NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS="false"
+```
 
-### Database Setup
+Optional Jupiter configuration:
 
-1. Run database migrations:
-   ```
-   npm run migrations:deploy
-   ```
+```env
+NEXT_PUBLIC_JUPITER_API_URL="https://api.jup.ag"
+NEXT_PUBLIC_JUPITER_API_KEY=""
+```
 
-### Docker Deployment (Recommended)
+### Database
 
-1. Build and start the containers:
-   ```
-   docker-compose up -d
-   ```
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
 
-### Manual Deployment
+### Run
 
-1. Build the application:
-   ```
-   npm run build
-   ```
+```bash
+npm run dev
+```
 
-2. Start the production server:
-   ```
-   npm run start
-   ```
+## Recommended Demo Flow
 
-## Security Best Practices
+1. Log in as merchant
+2. Open `Receive Payment`
+3. Create a payment intent in `Simulation` mode
+4. Copy the public checkout link
+5. Open that link in a separate wallet context
+6. Complete the payment from the payer wallet
+7. Review the dashboard for confirmed payment and recorded USDC-equivalent settlement
 
-1. Keep dependencies updated:
-   ```
-   npm audit fix
-   ```
+## Live Settlement Notes
 
-2. Enable rate limiting by configuring `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX_REQUESTS`
+The codebase now uses a shared architecture so simulation and live settlement follow the same checkout lifecycle. The main difference is the execution engine underneath.
 
-3. Use a secure RPC endpoint with API key authentication
+- `Simulation`: internal SOL-transfer executor + backend USDC-equivalent settlement
+- `Live`: Jupiter-backed live settlement executor
 
-4. Regularly backup your database
+That means the product surface is intentionally similar across both modes, while the settlement semantics remain honest.
 
-## Monitoring and Error Tracking
+## Current Status
 
-For production monitoring, we recommend:
+This project is best described as:
 
-1. Setting up Sentry for error tracking by configuring `NEXT_PUBLIC_SENTRY_DSN`
-2. Implementing server monitoring with Prometheus and Grafana
-3. Setting up log aggregation with ELK stack or similar
+- reliable simulation demo
+- realistic merchant checkout architecture
+- not yet a production-ready payments business system
+
+## Remaining Production Work
+
+- deeper live settlement validation on mainnet
+- stronger reconciliation and merchant webhook flows
+- more complete operational monitoring
+- final production hardening around payout/accounting guarantees

@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     select: {
       id: true,
       amount: true,
+      quoteAmountUSDC: true,
       token: true,
       mode: true,
       status: true,
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     payments: pagePayments.map((payment) => ({
       ...payment,
       amount: payment.amount.toString(),
-      quoteAmountUSDC: undefined,
+      quoteAmountUSDC: payment.quoteAmountUSDC?.toString() ?? null,
     })),
     pageInfo: {
       hasMore,

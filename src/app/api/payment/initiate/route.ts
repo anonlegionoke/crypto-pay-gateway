@@ -47,8 +47,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Merchant not found' }, { status: 404 });
         }
 
-        const paymentAddress = settlementWallet || merchantRecord.solanaWallet;
-        if (!paymentAddress) {
+        const settlementOwner = settlementWallet || merchantRecord.solanaWallet;
+        if (!settlementOwner) {
             return NextResponse.json(
                 { error: 'Merchant settlement wallet is required before creating a payment intent' },
                 { status: 400 }
@@ -56,10 +56,12 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-            new PublicKey(paymentAddress);
+            new PublicKey(settlementOwner);
         } catch {
             return NextResponse.json({ error: 'Invalid settlement wallet address' }, { status: 400 });
         }
+
+        const paymentAddress = settlementOwner;
 
         const payment = await prisma.payment.create({
             data: {

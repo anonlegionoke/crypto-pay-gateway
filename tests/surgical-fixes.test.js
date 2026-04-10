@@ -45,3 +45,62 @@ test('security middleware has graceful fallback when Upstash env is missing', ()
   assert.match(security, /UPSTASH_REDIS_REST_URL/);
   assert.match(security, /if\s*\(!hasUpstashConfig\)\s*\{\s*return null;/);
 });
+
+test('real checkout requires a live Jupiter quote instead of fallback mock data', () => {
+  const jupiterHook = read('src/hooks/useJupiter.ts');
+  const checkout = read('src/components/PaymentCheckout.tsx');
+  const gatewayTypes = read('src/lib/gateway-types.ts');
+
+  assert.match(jupiterHook, /interface GetPriceOptions/);
+  assert.match(jupiterHook, /allowFallback\?: boolean/);
+  assert.match(gatewayTypes, /provider:\s*'jupiter-swap-v2'\s*\|\s*'fallback-estimate'/);
+  assert.match(checkout, /allowFallback:\s*executionMode !== 'REAL'/);
+  assert.match(checkout, /Unable to get a live Jupiter quote for this checkout right now/);
+});
+
+test('real checkout is guarded behind configured Jupiter API access', () => {
+  const config = read('src/lib/config.ts');
+  const receivePage = read('src/app/dashboard/receive/page.tsx');
+  const checkout = read('src/components/PaymentCheckout.tsx');
+
+  assert.match(config, /https:\/\/api\.jup\.ag/);
+  assert.match(config, /hasJupiterApiKey:\s*Boolean\(JUPITER_API_KEY\)/);
+  assert.match(config, /supportsRealJupiterSwaps:\s*Boolean\(JUPITER_API_KEY\)\s*&&\s*SOLANA_NETWORK === 'mainnet-beta'/);
+  assert.match(receivePage, /devnet USDC route is not tradable via Jupiter in this app/);
+  assert.match(checkout, /devnet USDC route is not tradable via Jupiter in this app/);
+});
+
+test('public checkout shows merchant wallet separately from settlement address', () => {
+  const paymentRoute = read('src/app/api/payment/[paymentId]/route.ts');
+  const publicPage = read('src/app/pay/[paymentId]/page.tsx');
+
+  assert.match(paymentRoute, /merchantWallet:\s*Merchant\?\.solanaWallet \?\? null/);
+  assert.match(publicPage, /Settlement Flow/);
+  assert.match(publicPage, /payment\.merchantWallet \|\| 'Not available'/);
+});
+
+test('gateway flow uses a shared execution contract with simulation and real strategies', () => {
+  const transactionService = read('src/services/transaction.service.ts');
+  const transactionHook = read('src/hooks/useTransaction.ts');
+  const gatewayTypes = read('src/lib/gateway-types.ts');
+
+  assert.match(gatewayTypes, /export interface GatewayQuote/);
+  assert.match(gatewayTypes, /SIMULATED_USDC/);
+  assert.match(gatewayTypes, /LIVE_USDC/);
+  assert.match(transactionService, /preparePaymentExecution/);
+  assert.match(transactionService, /submitSignedPayment/);
+  assert.match(transactionService, /JUPITER_SWAP_V2_API/);
+  assert.match(transactionService, /submitRealExecution/);
+  assert.match(transactionHook, /preparePaymentExecution/);
+  assert.match(transactionHook, /submitSignedPayment/);
+});
+
+test('simulation and real settlements are labeled differently in payouts and dashboard', () => {
+  const payouts = read('src/lib/payouts.ts');
+  const dashboard = read('src/app/dashboard/page.tsx');
+
+  assert.match(payouts, /paymentMode === 'SIMULATION' \? 'SIMULATED' : 'SETTLED'/);
+  assert.match(dashboard, /Simulation total:/);
+  assert.match(dashboard, /No confirmed settlement recorded yet\./);
+  assert.match(dashboard, /payment\.mode === 'SIMULATION' \? 'SIMULATED' : 'SETTLED'/);
+});

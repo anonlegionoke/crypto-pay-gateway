@@ -22,6 +22,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       signature: true,
       createdAt: true,
       updatedAt: true,
+      Merchant: {
+        select: {
+          solanaWallet: true,
+        },
+      },
     },
   });
 
@@ -32,11 +37,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     );
   }
 
+  const { Merchant, ...paymentRecord } = payment;
+
   return NextResponse.json({
     success: true,
     payment: {
-      ...payment,
-      amount: payment.amount.toString(),
+      ...paymentRecord,
+      amount: paymentRecord.amount.toString(),
+      merchantWallet: Merchant?.solanaWallet ?? null,
     },
   });
 }

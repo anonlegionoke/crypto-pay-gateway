@@ -18,6 +18,10 @@ function derivePayoutAmountUSDC(payment: {
   return null;
 }
 
+function derivePayoutStatus(paymentMode: 'SIMULATION' | 'REAL') {
+  return paymentMode === 'SIMULATION' ? 'SIMULATED' : 'SETTLED';
+}
+
 export async function ensurePayoutForConfirmedPayment(paymentId: string) {
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
@@ -45,7 +49,7 @@ export async function ensurePayoutForConfirmedPayment(paymentId: string) {
       paymentId: payment.id,
       amountUSDC,
       toWallet: payment.paymentAddress,
-      status: 'SETTLED',
+      status: derivePayoutStatus(payment.mode),
     },
   });
 }
