@@ -5,7 +5,7 @@ const AUTH_STORAGE_KEY = 'token';
 const MERCHANT_STORAGE_KEY = 'merchantInfo';
 const AUTH_EVENT = 'auth-changed';
 
-export const useAuth = () => {
+export const useAuth = (requireAuth: boolean = true) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
     const router = useRouter();
 
@@ -14,7 +14,7 @@ export const useAuth = () => {
             const token = localStorage.getItem(AUTH_STORAGE_KEY);
             setIsAuthenticated(!!token);
 
-            if (!token) {
+            if (!token && requireAuth) {
                 router.push('/login');
             }
         };

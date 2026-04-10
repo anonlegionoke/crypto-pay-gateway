@@ -1,5 +1,5 @@
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Connection, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
+import { Connection, LAMPORTS_PER_SOL, ParsedAccountData, PublicKey, SystemProgram } from '@solana/web3.js';
 import { useEffect, useState } from 'react';
 import { config } from '@/lib/config';
 
@@ -17,6 +17,7 @@ interface Transaction {
 export function useWalletInfo() {
   const { publicKey } = useWallet();
   const [balance, setBalance] = useState<number | null>(null);
+  const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,10 +40,22 @@ export function useWalletInfo() {
 
     try {
       const connection = await getWorkingConnection();
+      const usdcMint = new PublicKey(config.tokenAddresses.USDC[config.network]);
 
       // Fetch balance
       const balance = await connection.getBalance(publicKey);
       setBalance(balance / LAMPORTS_PER_SOL);
+
+      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+        mint: usdcMint,
+      });
+
+      const liveUsdcBalance = tokenAccounts.value.reduce((sum, accountInfo) => {
+        const parsedData = accountInfo.account.data as ParsedAccountData;
+        const tokenAmount = parsedData.parsed.info.tokenAmount;
+        return sum + Number(tokenAmount.uiAmount || 0);
+      }, 0);
+      setUsdcBalance(liveUsdcBalance);
 
       // Fetch recent transactions
       const signatures = await connection.getSignaturesForAddress(publicKey, {
@@ -112,6 +125,7 @@ export function useWalletInfo() {
   useEffect(() => {
     if (!publicKey) {
       setBalance(null);
+      setUsdcBalance(null);
       setTransactions([]);
       return;
     }
@@ -124,6 +138,7 @@ export function useWalletInfo() {
 
   return {
     balance,
+    usdcBalance,
     transactions,
     loading,
     error,

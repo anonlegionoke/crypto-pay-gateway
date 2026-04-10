@@ -1,36 +1,39 @@
-import { Connection, PublicKey, Transaction, SystemProgram, VersionedTransaction, Commitment, ConnectionConfig, TransactionInstruction } from '@solana/web3.js';
-import { QuoteResponse } from '@jup-ag/api';
+import {
+  Commitment,
+  Connection,
+  ConnectionConfig,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+  VersionedTransaction,
+} from '@solana/web3.js';
 import { config } from '@/lib/config';
+import {
+  CheckoutMode,
+  GatewayQuote,
+  PaymentExecutionResult,
+  PreparedPaymentExecution,
+} from '@/lib/gateway-types';
 
-// Constants - now using values from config
-const JUPITER_SWAP_API = `${config.jupiterApiBaseUrl}/swap/v1`;
+const JUPITER_SWAP_V2_API = config.jupiterSwapV2ApiBaseUrl;
+const USDC_DECIMALS = 6;
 
-// RPC configuration
 const CONNECTION_CONFIG: ConnectionConfig = {
   commitment: config.confirmationOptions.commitment as Commitment,
-  confirmTransactionInitialTimeout: 60000, // 1 minute
+  confirmTransactionInitialTimeout: 60000,
   disableRetryOnRateLimit: false,
   httpHeaders: {
     'Content-Type': 'application/json',
   },
 };
 
-interface SwapTransactionParams {
-  quote: QuoteResponse;
+interface PreparePaymentParams {
+  quote: GatewayQuote;
   userPublicKey: PublicKey;
   recipientAddress: PublicKey;
   inputMint?: string;
-}
-
-interface JupiterSwapResponse {
-  swapTransaction: string;
-  lastValidBlockHeight: number;
-  additionalMessage?: string;
-}
-
-interface TransactionConfirmationContext {
-  blockhash: string;
-  lastValidBlockHeight: number;
+  mode: CheckoutMode;
 }
 
 interface SignatureStatusResult {
@@ -38,130 +41,191 @@ interface SignatureStatusResult {
   err: unknown;
 }
 
+interface JupiterExecuteResponse {
+  status?: 'Success' | 'Failed';
+  signature?: string;
+  error?: string;
+  code?: number;
+  outputAmountResult?: string;
+}
+
+function formatTokenAmount(amount: string | null | undefined, decimals: number) {
+  if (!amount) return null;
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount)) return null;
+  return (numericAmount / Math.pow(10, decimals)).toString();
+}
+
 export class TransactionService {
-  readonly priceConnection: Connection;
   readonly txConnection: Connection;
   readonly txFallbackConnections: Connection[];
 
   constructor() {
     const [primaryRpc, fallbackRpc] = config.rpcFallbackEndpoints;
-    this.priceConnection = new Connection(primaryRpc, CONNECTION_CONFIG);
-    
     this.txConnection = new Connection(primaryRpc, CONNECTION_CONFIG);
     this.txFallbackConnections = [
       this.txConnection,
       ...(fallbackRpc && fallbackRpc !== primaryRpc ? [new Connection(fallbackRpc, CONNECTION_CONFIG)] : []),
     ];
-    
-    console.log(`TransactionService initialized with network: ${config.network}`);
   }
 
-  async createSwapTransaction({ quote, userPublicKey, recipientAddress, inputMint }: SwapTransactionParams): Promise<Transaction> {
-    try {
-      if (!quote || !userPublicKey || !recipientAddress) {
-        throw new Error('Missing required parameters for swap transaction');
-      }
-
-      if (config.useRealJupiterSwaps) {
-        throw new Error('For production, use createRealJupiterSwap instead of createSwapTransaction');
-      }
-
-      // Simulation mode only supports SOL transfers to avoid fake conversion math.
-      if (!inputMint || inputMint !== config.tokenAddresses.SOL) {
-        throw new Error('Simulation mode supports SOL only. Enable real Jupiter swaps for SPL token payments.');
-      }
-
-      const transaction = new Transaction();
-
-      const inLamports = Number(quote.inAmount);
-      if (!Number.isFinite(inLamports) || inLamports <= 0) {
-        throw new Error('Invalid quote amount for simulated transfer');
-      }
-
-      // Add a transfer instruction to simulate the USDC settlement
-      const transferInstruction = SystemProgram.transfer({
-        fromPubkey: userPublicKey,
-        toPubkey: recipientAddress,
-        lamports: Math.ceil(inLamports),
-      });
-
-      transaction.add(transferInstruction);
-
-      // Add a memo to indicate this is simulating a Jupiter swap
-      // In production, this would be replaced with actual swap instructions
-      const memoProgram = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
-      const memoInstruction = new TransactionInstruction({
-        keys: [],
-        programId: memoProgram,
-        data: Buffer.from(`Simulated payment transfer (${config.network})`),
-      });
-      
-      transaction.add(memoInstruction);
-
-      // Get the latest blockhash from devnet with retries
-      let blockhash, lastValidBlockHeight;
-      try {
-        const blockHashResponse = await this.getLatestBlockhashWithRetry();
-        blockhash = blockHashResponse.blockhash;
-        lastValidBlockHeight = blockHashResponse.lastValidBlockHeight;
-      } catch (error) {
-        console.error('Failed to get blockhash:', error);
-        throw new Error(`Failed to get blockhash from ${config.network}`);
-      }
-
-      transaction.recentBlockhash = blockhash;
-      transaction.lastValidBlockHeight = lastValidBlockHeight;
-      transaction.feePayer = userPublicKey;
-
-      return transaction;
-    } catch (error) {
-      console.error('Error creating transaction:', error);
-      throw error;
+  async preparePaymentExecution({ quote, userPublicKey, recipientAddress, inputMint, mode }: PreparePaymentParams): Promise<PreparedPaymentExecution> {
+    if (mode === 'REAL') {
+      return this.prepareRealExecution({ quote, recipientAddress });
     }
+
+    return this.prepareSimulationExecution({ quote, userPublicKey, recipientAddress, inputMint });
   }
 
-  // This would be used in production to create a real Jupiter swap transaction
-  async createRealJupiterSwap({ quote, userPublicKey, recipientAddress }: SwapTransactionParams): Promise<{
-    transaction: VersionedTransaction;
-    confirmationContext: TransactionConfirmationContext;
-  }> {
-    try {
-      // 1. Get swap transaction from Jupiter API
-      const swapResponse = await fetch(`${JUPITER_SWAP_API}/swap`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(config.jupiterApiKey ? { 'x-api-key': config.jupiterApiKey } : {}),
-        },
-        body: JSON.stringify({
-          quoteResponse: quote,
-          userPublicKey: userPublicKey.toString(),
-          destinationTokenAccount: recipientAddress.toString(), // Send USDC to recipient
-        }),
-      });
-
-      if (!swapResponse.ok) {
-        const error = await swapResponse.json().catch(() => ({}));
-        throw new Error(error.error || 'Failed to get swap transaction');
-      }
-
-      const { swapTransaction, lastValidBlockHeight } = await swapResponse.json() as JupiterSwapResponse;
-      
-      // 2. Deserialize transaction
-      const transactionBuffer = Buffer.from(swapTransaction, 'base64');
-      const versionedTransaction = VersionedTransaction.deserialize(transactionBuffer);
-      
-      return {
-        transaction: versionedTransaction,
-        confirmationContext: {
-          blockhash: versionedTransaction.message.recentBlockhash,
-          lastValidBlockHeight,
-        },
-      };
-    } catch (error) {
-      console.error('Error creating Jupiter swap:', error);
-      throw error;
+  private async prepareSimulationExecution({ quote, userPublicKey, recipientAddress, inputMint }: Omit<PreparePaymentParams, 'mode'>): Promise<PreparedPaymentExecution> {
+    if (!inputMint || inputMint !== config.tokenAddresses.SOL) {
+      throw new Error('Simulation mode supports SOL only. Enable real Jupiter swaps for SPL token payments.');
     }
+
+    const transaction = new Transaction();
+    const inLamports = Number(quote.inAmount);
+    if (!Number.isFinite(inLamports) || inLamports <= 0) {
+      throw new Error('Invalid quote amount for simulated transfer');
+    }
+
+    transaction.add(SystemProgram.transfer({
+      fromPubkey: userPublicKey,
+      toPubkey: recipientAddress,
+      lamports: Math.ceil(inLamports),
+    }));
+
+    const memoProgram = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
+    transaction.add(new TransactionInstruction({
+      keys: [],
+      programId: memoProgram,
+      data: Buffer.from(`Simulated payment transfer (${config.network})`),
+    }));
+
+    const { blockhash, lastValidBlockHeight } = await this.getLatestBlockhashWithRetry();
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = userPublicKey;
+
+    return {
+      transaction,
+      executionMode: 'SIMULATION',
+      settlementType: 'SIMULATED_USDC',
+      settlementAddress: recipientAddress.toBase58(),
+      provider: 'internal-simulation',
+      quotedUsdcAmount: formatTokenAmount(quote.outAmount, USDC_DECIMALS),
+      confirmationContext: {
+        blockhash,
+        lastValidBlockHeight,
+      },
+    };
+  }
+
+  private async prepareRealExecution({ quote, recipientAddress }: Pick<PreparePaymentParams, 'quote' | 'recipientAddress'>): Promise<PreparedPaymentExecution> {
+    if (!config.supportsRealJupiterSwaps) {
+      throw new Error('Live settlement mode requires mainnet-beta and a Jupiter API key.');
+    }
+
+    if (!quote.transaction || !quote.requestId || typeof quote.lastValidBlockHeight !== 'number') {
+      throw new Error('Live Jupiter quote is missing transaction data. Refresh the checkout and try again.');
+    }
+
+    const transactionBuffer = Buffer.from(quote.transaction, 'base64');
+    const transaction = VersionedTransaction.deserialize(transactionBuffer);
+
+    return {
+      transaction,
+      executionMode: 'REAL',
+      settlementType: 'LIVE_USDC',
+      settlementAddress: recipientAddress.toBase58(),
+      provider: 'jupiter-swap-v2',
+      quotedUsdcAmount: formatTokenAmount(quote.outAmount, USDC_DECIMALS),
+      confirmationContext: {
+        blockhash: transaction.message.recentBlockhash,
+        lastValidBlockHeight: quote.lastValidBlockHeight,
+        requestId: quote.requestId,
+      },
+    };
+  }
+
+  async submitSignedPayment(
+    signedTransaction: Transaction | VersionedTransaction,
+    preparedExecution: PreparedPaymentExecution,
+    paymentId?: string,
+  ): Promise<PaymentExecutionResult> {
+    if (preparedExecution.executionMode === 'REAL') {
+      return this.submitRealExecution(signedTransaction, preparedExecution, paymentId);
+    }
+
+    return this.submitSimulationExecution(signedTransaction, preparedExecution, paymentId);
+  }
+
+  private async submitSimulationExecution(
+    signedTransaction: Transaction | VersionedTransaction,
+    preparedExecution: PreparedPaymentExecution,
+    paymentId?: string,
+  ): Promise<PaymentExecutionResult> {
+    const signature = await this.sendRawTransaction(this.serializeTransaction(signedTransaction));
+    const confirmed = await this.confirmTransaction(signature, preparedExecution.confirmationContext);
+
+    if (!confirmed) {
+      throw new Error('Transaction failed');
+    }
+
+    return {
+      signature,
+      confirmed: true,
+      mode: 'simulated',
+      settlementType: preparedExecution.settlementType,
+      settlementAddress: preparedExecution.settlementAddress,
+      provider: preparedExecution.provider,
+      quotedUsdcAmount: preparedExecution.quotedUsdcAmount,
+      paymentId,
+    };
+  }
+
+  private async submitRealExecution(
+    signedTransaction: Transaction | VersionedTransaction,
+    preparedExecution: PreparedPaymentExecution,
+    paymentId?: string,
+  ): Promise<PaymentExecutionResult> {
+    const signedTransactionBase64 = this.serializeTransaction(signedTransaction).toString('base64');
+    const executeResponse = await fetch(`${JUPITER_SWAP_V2_API}/execute`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(config.jupiterApiKey ? { 'x-api-key': config.jupiterApiKey } : {}),
+      },
+      body: JSON.stringify({
+        signedTransaction: signedTransactionBase64,
+        requestId: preparedExecution.confirmationContext.requestId,
+        lastValidBlockHeight: preparedExecution.confirmationContext.lastValidBlockHeight.toString(),
+      }),
+    });
+
+    const executeData = await executeResponse.json().catch(() => ({} as JupiterExecuteResponse));
+    if (!executeResponse.ok || executeData.status === 'Failed' || !executeData.signature) {
+      throw new Error(executeData.error || 'Failed to execute Jupiter swap');
+    }
+
+    const confirmed = await this.confirmTransaction(executeData.signature, preparedExecution.confirmationContext);
+    if (!confirmed) {
+      throw new Error('Transaction failed');
+    }
+
+    return {
+      signature: executeData.signature,
+      confirmed: true,
+      mode: 'real',
+      settlementType: preparedExecution.settlementType,
+      settlementAddress: preparedExecution.settlementAddress,
+      provider: preparedExecution.provider,
+      quotedUsdcAmount: formatTokenAmount(executeData.outputAmountResult, USDC_DECIMALS) ?? preparedExecution.quotedUsdcAmount,
+      paymentId,
+    };
+  }
+
+  private serializeTransaction(transaction: Transaction | VersionedTransaction) {
+    return Buffer.from(transaction.serialize());
   }
 
   private async getLatestBlockhashWithRetry(retries = 3, delay = 1000): Promise<{ blockhash: string; lastValidBlockHeight: number }> {
@@ -170,7 +234,7 @@ export class TransactionService {
       for (const [index, connection] of this.txFallbackConnections.entries()) {
         try {
           const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(
-            config.confirmationOptions.commitment as Commitment
+            config.confirmationOptions.commitment as Commitment,
           );
           return { blockhash, lastValidBlockHeight };
         } catch (error) {
@@ -180,14 +244,14 @@ export class TransactionService {
       }
 
       if (attempt < retries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
     throw lastError;
   }
 
-  async confirmTransaction(signature: string, confirmationContext: TransactionConfirmationContext): Promise<boolean> {
+  async confirmTransaction(signature: string, confirmationContext: { blockhash: string; lastValidBlockHeight: number }): Promise<boolean> {
     const deadline = Date.now() + 45_000;
 
     while (Date.now() < deadline) {
@@ -207,11 +271,10 @@ export class TransactionService {
           }
 
           const currentBlockHeight = await connection.getBlockHeight(
-            config.confirmationOptions.commitment as Commitment
+            config.confirmationOptions.commitment as Commitment,
           );
 
           if (currentBlockHeight > confirmationContext.lastValidBlockHeight) {
-            console.warn('Transaction expired before confirmation');
             return false;
           }
         } catch (error) {
@@ -222,18 +285,7 @@ export class TransactionService {
       await new Promise((resolve) => setTimeout(resolve, 2_000));
     }
 
-    console.error('Transaction confirmation timed out');
     return false;
-  }
-
-  async getTransactionStatus(signature: string) {
-    try {
-      const status = await this.txConnection.getSignatureStatus(signature);
-      return status;
-    } catch (error) {
-      console.error('Error getting transaction status:', error);
-      throw error;
-    }
   }
 
   async getBalance(publicKey: PublicKey): Promise<number> {
@@ -252,7 +304,7 @@ export class TransactionService {
   }
 
   async sendRawTransaction(rawTransaction: Buffer): Promise<string> {
-    return await this.txConnection.sendRawTransaction(rawTransaction, {
+    return this.txConnection.sendRawTransaction(rawTransaction, {
       skipPreflight: config.confirmationOptions.skipPreflight,
       maxRetries: 3,
       preflightCommitment: config.confirmationOptions.preflightCommitment as Commitment,

@@ -22,6 +22,6 @@ export function WalletButton() {
     }, [connected, publicKey]);
 
     return (
-        <WalletMultiButton />
+        <WalletMultiButton style={{ borderRadius: '1rem', height: '42px', padding: '0 20px' }} />
     );
 }

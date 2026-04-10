@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { TransactionService } from '@/services/transaction.service';
-import { QuoteResponse } from '@jup-ag/api';
 import { PublicKey } from '@solana/web3.js';
 import { config } from '@/lib/config';
+import { CheckoutMode, GatewayQuote } from '@/lib/gateway-types';
 
 const LAMPORTS_PER_SOL = 1_000_000_000;
 const SIMULATION_FEE_BUFFER_LAMPORTS = 10_000;
@@ -15,10 +15,10 @@ export function useTransaction() {
   const [error, setError] = useState<string | null>(null);
 
   const executePayment = useCallback(async (
-    quote: QuoteResponse,
+    quote: GatewayQuote,
     recipientAddress: string,
     paymentId?: string,
-    mode: 'SIMULATION' | 'REAL' = config.useRealJupiterSwaps ? 'REAL' : 'SIMULATION',
+    mode: CheckoutMode = config.useRealJupiterSwaps && config.supportsRealJupiterSwaps ? 'REAL' : 'SIMULATION',
   ) => {
     if (!publicKey || !signTransaction || !connected) {
       throw new Error('Wallet not connected');
@@ -28,15 +28,7 @@ export function useTransaction() {
     setError(null);
 
     try {
-      // Decide whether to use real Jupiter swaps or simulated swaps based on config
-      if (mode === 'REAL') {
-        // In production with real Jupiter swaps enabled, use versionedTransaction
-        console.log("Using real Jupiter swap for payment");
-        return await executeJupiterSwapInternal(quote, recipientAddress, paymentId);
-      } else {
-        // In development or testing, use simulated swap
-        console.log("Using simulated swap for payment on", config.network);
-
+      if (mode === 'SIMULATION') {
         const requiredLamports = Number(quote.inAmount);
         if (!Number.isFinite(requiredLamports) || requiredLamports <= 0) {
           throw new Error('Invalid payment amount returned by quote service');
@@ -52,96 +44,29 @@ export function useTransaction() {
             `Insufficient SOL balance. Need about ${requiredSol.toFixed(6)} SOL, but wallet has ${availableSol.toFixed(6)} SOL.`
           );
         }
-        
-        // Create the transaction (simulated swap for development)
-        const transaction = await transactionService.createSwapTransaction({
-          quote,
-          userPublicKey: publicKey,
-          recipientAddress: new PublicKey(recipientAddress),
-          inputMint: quote.inputMint,
-        });
-
-        // Sign the transaction
-        const signedTransaction = await signTransaction(transaction);
-
-        // Send the signed transaction
-        const signature = await transactionService.sendRawTransaction(
-          Buffer.from(signedTransaction.serialize())
-        );
-
-        if (!transaction.recentBlockhash || typeof transaction.lastValidBlockHeight !== 'number') {
-          throw new Error('Transaction confirmation context was not set');
-        }
-
-        // Confirm the transaction
-        const confirmed = await transactionService.confirmTransaction(signature, {
-          blockhash: transaction.recentBlockhash,
-          lastValidBlockHeight: transaction.lastValidBlockHeight,
-        });
-
-        if (!confirmed) {
-          throw new Error('Transaction failed');
-        }
-
-        return {
-          signature,
-          confirmed: true,
-          mode: 'simulated' as const,
-          paymentId,
-        };
       }
+
+      const preparedExecution = await transactionService.preparePaymentExecution({
+        quote,
+        userPublicKey: publicKey,
+        recipientAddress: new PublicKey(recipientAddress),
+        inputMint: quote.inputMint,
+        mode,
+      });
+
+      const signedTransaction = await signTransaction(preparedExecution.transaction as never);
+
+      return await transactionService.submitSignedPayment(
+        signedTransaction as never,
+        preparedExecution,
+        paymentId,
+      );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Payment failed';
       setError(errorMessage);
       throw err;
     } finally {
       setLoading(false);
-    }
-  }, [publicKey, signTransaction, connected, transactionService]);
-
-  // Internal method for Jupiter swaps - used by executePayment when in production
-  const executeJupiterSwapInternal = useCallback(async (
-    quote: QuoteResponse,
-    recipientAddress: string,
-    paymentId?: string,
-  ) => {
-    if (!publicKey || !signTransaction || !connected) {
-      throw new Error('Wallet not connected');
-    }
-
-    try {
-      // 1. Create the versioned transaction
-      const { transaction: versionedTransaction, confirmationContext } = await transactionService.createRealJupiterSwap({
-        quote,
-        userPublicKey: publicKey,
-        recipientAddress: new PublicKey(recipientAddress),
-      });
-
-      // 2. Sign the versioned transaction
-      const signedTransaction = await signTransaction(versionedTransaction as any);
-
-      // 3. Send the signed transaction
-      const signature = await transactionService.sendRawTransaction(
-        Buffer.from(signedTransaction.serialize())
-      );
-
-      // 4. Confirm the transaction
-      const confirmed = await transactionService.confirmTransaction(signature, confirmationContext);
-
-      if (!confirmed) {
-        throw new Error('Transaction failed');
-      }
-
-      return {
-        signature,
-        confirmed: true,
-        mode: 'real' as const,
-        paymentId,
-      };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Swap failed';
-      setError(errorMessage);
-      throw err;
     }
   }, [publicKey, signTransaction, connected, transactionService]);
 
