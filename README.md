@@ -123,14 +123,6 @@ The codebase now uses a shared architecture so simulation and live settlement fo
 
 That means the product surface is intentionally similar across both modes, while the settlement semantics remain honest.
 
-## Current Status
-
-This project is best described as:
-
-- reliable simulation demo
-- realistic merchant checkout architecture
-- not yet a production-ready payments business system
-
 ## Remaining Production Work
 
 - deeper live settlement validation on mainnet
