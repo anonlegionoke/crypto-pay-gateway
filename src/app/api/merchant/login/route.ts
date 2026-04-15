@@ -38,7 +38,7 @@ export async function POST(request: Request) {
      };
      
      return NextResponse.json({token, merchant: safeMerchant});
-   } catch (error) {
+   } catch {
      return NextResponse.json({message: "Something went wrong"}, {status: 500});
    }
 }

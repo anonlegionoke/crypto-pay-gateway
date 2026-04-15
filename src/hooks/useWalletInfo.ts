@@ -1,6 +1,6 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Connection, LAMPORTS_PER_SOL, ParsedAccountData, PublicKey, SystemProgram } from '@solana/web3.js';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { config } from '@/lib/config';
 
 const primaryConnection = new Connection(config.rpcEndpoint, 'confirmed');
@@ -22,17 +22,17 @@ export function useWalletInfo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getWorkingConnection = async () => {
+  const getWorkingConnection = useCallback(async () => {
     try {
       await primaryConnection.getVersion();
       return primaryConnection;
-    } catch (err) {
+    } catch {
       console.warn('Primary RPC unavailable for wallet info, using fallback cluster RPC');
       return fallbackConnection;
     }
-  };
+  }, []);
 
-  const fetchWalletInfo = async () => {
+  const fetchWalletInfo = useCallback(async () => {
     if (!publicKey) return;
     
     setLoading(true);
@@ -120,7 +120,7 @@ export function useWalletInfo() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getWorkingConnection, publicKey]);
 
   useEffect(() => {
     if (!publicKey) {
@@ -134,7 +134,7 @@ export function useWalletInfo() {
     fetchWalletInfo();
     
     // Remove the polling interval - we'll use manual refresh instead
-  }, [publicKey]);
+  }, [fetchWalletInfo, publicKey]);
 
   return {
     balance,
@@ -142,6 +142,6 @@ export function useWalletInfo() {
     transactions,
     loading,
     error,
-    refreshWalletInfo: fetchWalletInfo  // Expose refresh function
+    refreshWalletInfo: fetchWalletInfo
   };
 }

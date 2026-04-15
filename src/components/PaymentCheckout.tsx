@@ -107,7 +107,7 @@ export function PaymentCheckout({
 
     const debounceTimeout = setTimeout(updateUsdcEquivalent, 500);
     return () => clearTimeout(debounceTimeout);
-  }, [amount, executionMode, getPrice, publicKey, recipientAddress, selectedToken.mint]);
+  }, [amount, executionMode, getPrice, publicKey, recipientAddress, realSwapAvailable, selectedToken.mint]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

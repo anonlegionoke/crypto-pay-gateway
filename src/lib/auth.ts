@@ -8,7 +8,7 @@ export interface MerchantTokenPayload extends JwtPayload {
 export function verifyToken(token: string): MerchantTokenPayload | null {
     try {
         return jwt.verify(token, process.env.JWT_SECRET!) as MerchantTokenPayload;
-    } catch (error) {
+    } catch {
         return null;
     }
 }

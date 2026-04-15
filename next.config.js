@@ -53,21 +53,13 @@ const nextConfig = {
     },
     output: 'standalone',
     reactStrictMode: true,
-    swcMinify: true,
     eslint: {
         dirs: ['src'],
     },
     compiler: {
         removeConsole: process.env.NODE_ENV === 'production',
     },
-    typescript: {
-        // Handle type checking in CI/CD pipeline
-        ignoreBuildErrors: process.env.NODE_ENV === 'production',
-    },
-    experimental: {
-        // Optimize server-side rendering performance
-        serverComponentsExternalPackages: ['bcrypt'],
-    }
+    serverExternalPackages: ['bcrypt'],
 };
 
 module.exports = nextConfig;
