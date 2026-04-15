@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import '@solana/wallet-adapter-react-ui/styles.css';
 import { ClientWalletProvider as WalletProvider } from "@/components/WalletProvider";
 import { Toaster } from 'react-hot-toast';
 import NextTopLoader from 'nextjs-toploader';
