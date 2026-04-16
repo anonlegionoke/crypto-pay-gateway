@@ -4,6 +4,8 @@ Crypto Gate is a Solana merchant checkout gateway built with Next.js, Prisma, So
 
 The app gives merchants a private dashboard to create payment intents and share public checkout links. Customers open the checkout, connect a wallet, and complete the payment flow on-chain.
 
+<img width="1613" height="1063" alt="image" src="https://github.com/user-attachments/assets/1aef5fc8-4043-4d2b-880c-692727360aeb" />
+
 ## Current Scope
 
 - Polished devnet simulation demo for merchant checkout
