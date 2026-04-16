@@ -42,15 +42,8 @@ export async function authMiddleware(request: NextRequest) {
       );
     }
     
-    // Add merchant data to request context
-    const requestWithAuth = request as any;
-    requestWithAuth.merchant = {
-      id: merchant.id,
-      email: merchant.email,
-    };
-    
     return NextResponse.next();
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, error: 'Invalid token', code: 'UNAUTHORIZED' },
       { status: 401 }

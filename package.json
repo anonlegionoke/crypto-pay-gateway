@@ -21,9 +21,9 @@
     "@prisma/client": "^6.5.0",
     "@solana/spl-token": "^0.4.13",
     "@solana/wallet-adapter-base": "^0.9.24",
+    "@solana/wallet-adapter-phantom": "^0.9.25",
     "@solana/wallet-adapter-react": "^0.15.36",
     "@solana/wallet-adapter-react-ui": "^0.9.36",
-    "@solana/wallet-adapter-wallets": "^0.19.34",
     "@solana/web3.js": "^1.98.0",
     "@types/bcrypt": "^5.0.2",
     "@types/bs58": "^4.0.4",
@@ -39,7 +39,7 @@
     "jsbi": "^4.3.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^1.7.0",
-    "next": "15.2.0",
+    "next": "15.2.9",
     "nextjs-toploader": "^3.9.17",
     "prisma": "^6.5.0",
     "qrcode.react": "^4.2.0",
@@ -56,7 +56,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.2.0",
+    "eslint-config-next": "15.2.9",
     "tailwindcss": "^4.0.9",
     "typescript": "^5"
   }

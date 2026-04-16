@@ -13,7 +13,7 @@ export function toErrorWithMessage(error: unknown): ErrorWithMessage {
 }
 
 // Log error with structured format
-export function logError(error: unknown, context?: Record<string, any>) {
+export function logError(error: unknown, context?: Record<string, unknown>) {
   const errorWithMessage = toErrorWithMessage(error);
   
   console.error({

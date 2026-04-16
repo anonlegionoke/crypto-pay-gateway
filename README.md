@@ -1,21 +1,34 @@
 # Crypto Gate
 
-Crypto Gate is a Solana merchant checkout gateway.
+Crypto Gate is a Solana merchant checkout gateway built with Next.js, Prisma, Solana `web3.js`, and Jupiter.
 
-It gives merchants a private dashboard to create payment intents and share public checkout links. Customers open the checkout, connect a wallet, and complete the payment flow on-chain.
+The app gives merchants a private dashboard to create payment intents and share public checkout links. Customers open the checkout, connect a wallet, and complete the payment flow on-chain.
 
-## What This Project Is Today
+## Current Scope
 
-- A polished devnet simulation demo for merchant crypto checkout
-- A shared payment gateway architecture for both simulation and live settlement modes
-- A Jupiter-backed live settlement path designed to be enabled by environment configuration
+- Polished devnet simulation demo for merchant checkout
+- Shared checkout architecture for both simulation and live settlement modes
+- Jupiter-backed live settlement path behind environment configuration
+- Merchant auth, payment intents, public checkout, confirmation, and payout records
 
-## What It Does
+## What This App Is
+
+This project is a **single full-stack Next.js app**.
+
+- Frontend and backend are in the same codebase
+- UI pages live under `src/app`
+- API routes also live under `src/app/api`
+- PostgreSQL stores merchants, payments, and payouts
+- Upstash is optional and only used for distributed rate limiting in production
+
+You do **not** need to run a separate frontend service and backend service.
+
+## Main Flow
 
 1. Merchant signs up and logs in
 2. Merchant creates a payment intent
 3. Merchant shares a public checkout link
-4. Customer opens the public checkout and connects a wallet
+4. Customer opens the checkout and connects a wallet
 5. Customer pays from wallet
 6. Backend confirms the payment and records settlement/payout data
 
@@ -23,10 +36,10 @@ It gives merchants a private dashboard to create payment intents and share publi
 
 ### Simulation Settlement
 
-This is the primary demo mode and the recommended way to run the project locally.
+This is the recommended local demo mode.
 
 - Runs on `devnet`
-- Uses a real on-chain SOL transfer for the customer payment step
+- Uses a real on-chain SOL transfer for the payer step
 - Records a USDC-equivalent settlement value in the backend
 - Does **not** credit real USDC to the merchant wallet on-chain
 
@@ -35,97 +48,218 @@ This is the primary demo mode and the recommended way to run the project locally
 This is the architecture path for live settlement.
 
 - Intended for `mainnet-beta`
-- Uses Jupiter to route a supported Solana token into merchant USDC settlement
-- Requires Jupiter API access and live mainnet assets
-- The code path is configuration-driven, but should still be validated with a production smoke test before being treated as live-ready
-
-## Core Features
-
-- Merchant auth with protected dashboard
-- Payment intent creation and public checkout links
-- Wallet-based payer checkout flow
-- Shared gateway flow for simulation and live settlement modes
-- On-chain confirmation and payout record creation
-- Dashboard metrics for wallet USDC, gateway USDC, confirmed payments, and pending intents
-- Rate limiting, validation, and safer API contracts
+- Uses Jupiter for token-to-USDC settlement
+- Requires a Jupiter API key and mainnet assets
+- Exists in the codebase, but should still be validated with a real production smoke test before being treated as live-ready
 
 ## Tech Stack
 
-- Next.js App Router
+- Next.js 15 App Router
 - React 19
-- Tailwind CSS
+- Tailwind CSS 4
 - Prisma + PostgreSQL
 - Solana Web3.js
-- Jupiter Swap APIs
+- Solana wallet adapter + Phantom
+- Jupiter APIs
 - JWT auth
-- Upstash-compatible rate limiting middleware
+- Optional Upstash rate limiting
 
-## Local Development
+## Prerequisites
 
-### Prerequisites
-
-- Node.js 18+
-- PostgreSQL
+- Node.js 20+
+- npm
+- Docker Desktop or Docker Engine
 - A Solana wallet such as Phantom
 
-### Install
+## Environment Variables
+
+Start from `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+### Required for Local Simulation
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/crypto_gateway"
+JWT_SECRET="replace-this-with-a-long-random-secret"
+NEXT_PUBLIC_API_URL="http://localhost:3000"
+NEXT_PUBLIC_SOLANA_NETWORK="devnet"
+NEXT_PUBLIC_SOLANA_RPC_URL="https://api.devnet.solana.com"
+NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS="false"
+NEXT_PUBLIC_CORS_ORIGIN="http://localhost:3000"
+NODE_ENV="development"
+```
+
+### Optional
+
+```env
+NEXT_PUBLIC_JUPITER_API_URL="https://api.jup.ag"
+NEXT_PUBLIC_JUPITER_API_KEY=""
+NEXT_PUBLIC_WALLET_RPC_URL=""
+UPSTASH_REDIS_REST_URL=""
+UPSTASH_REDIS_REST_TOKEN=""
+```
+
+Notes:
+
+- `NEXT_PUBLIC_JUPITER_API_KEY` is only needed if you want to enable the live settlement path
+- Upstash is optional; if its env vars are missing, the app falls back without distributed rate limiting
+- `NEXT_PUBLIC_WALLET_RPC_URL` is optional and only needed if you want wallet connections to use a custom RPC instead of the default cluster endpoint
+
+## Local Setup
+
+### 1. Start PostgreSQL with Docker
+
+```bash
+docker compose up -d postgres
+```
+
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-### Environment
-
-For the recommended local simulation setup:
-
-```env
-NEXT_PUBLIC_SOLANA_NETWORK="devnet"
-NEXT_PUBLIC_SOLANA_RPC_URL="https://api.devnet.solana.com"
-NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS="false"
-```
-
-Optional Jupiter configuration:
-
-```env
-NEXT_PUBLIC_JUPITER_API_URL="https://api.jup.ag"
-NEXT_PUBLIC_JUPITER_API_KEY=""
-```
-
-### Database
+### 3. Run database migrations
 
 ```bash
 npx prisma migrate dev
 npx prisma generate
 ```
 
-### Run
+### 4. Start the app
 
 ```bash
 npm run dev
 ```
 
-## Recommended Demo Flow
+The app will be available at `http://localhost:3000`.
 
-1. Log in as merchant
-2. Open `Receive Payment`
-3. Create a payment intent in `Simulation` mode
-4. Copy the public checkout link
-5. Open that link in a separate wallet context
-6. Complete the payment from the payer wallet
-7. Review the dashboard for confirmed payment and recorded USDC-equivalent settlement
+## Recommended Demo Setup
 
-## Live Settlement Notes
+Use these conditions for the cleanest proof-of-work demo:
 
-The codebase now uses a shared architecture so simulation and live settlement follow the same checkout lifecycle. The main difference is the execution engine underneath.
+- Merchant logs in on one wallet context
+- Merchant creates a payment intent in `Simulation` mode
+- Merchant copies the public checkout link
+- Customer opens that link in a separate wallet context
+- Customer pays on devnet
+- Merchant reviews the dashboard for confirmed payment and recorded USDC-equivalent settlement
 
-- `Simulation`: internal SOL-transfer executor + backend USDC-equivalent settlement
-- `Live`: Jupiter-backed live settlement executor
+## Docker Notes
 
-That means the product surface is intentionally similar across both modes, while the settlement semantics remain honest.
+### What Docker Compose Does Here
+
+The included `docker-compose.yml` is intentionally focused on **PostgreSQL for local development**.
+
+That is the only service the app truly requires locally.
+
+### What About Redis?
+
+This project does **not** require a local Redis container to run.
+
+The security middleware is written for Upstash-compatible distributed rate limiting. If Upstash env vars are not provided, the app still works locally without it.
+
+### What About the App Container?
+
+The `Dockerfile` is kept for production-style container builds, but for local development the simplest path is:
+
+1. run PostgreSQL with Docker Compose
+2. run the Next.js app locally with `npm run dev`
+
+## Production Container Build
+
+If you want to build the standalone production image:
+
+```bash
+docker build -t crypto-gate .
+```
+
+Before running a production container, make sure:
+
+1. the target database already exists
+2. Prisma migrations have been applied
+3. all required environment variables are present
+
+## Vercel Deployment
+
+### What You Need
+
+For Vercel, you need:
+
+1. this Next.js app
+2. a managed PostgreSQL database
+3. optional Upstash credentials
+4. optional Jupiter live-settlement credentials
+
+### Recommended Production Services
+
+- Database: Neon, Supabase Postgres, Railway Postgres, or any external PostgreSQL
+- Rate limiting: Upstash Redis
+
+### Vercel Environment Variables
+
+At minimum:
+
+```env
+DATABASE_URL=
+JWT_SECRET=
+NEXT_PUBLIC_API_URL=
+NEXT_PUBLIC_CORS_ORIGIN=
+NEXT_PUBLIC_SOLANA_NETWORK=
+NEXT_PUBLIC_SOLANA_RPC_URL=
+NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS=
+NEXT_PUBLIC_JUPITER_API_URL=
+NEXT_PUBLIC_JUPITER_API_KEY=
+```
+
+Recommended values:
+
+- For simulation-style deployments:
+  - `NEXT_PUBLIC_SOLANA_NETWORK=devnet`
+  - `NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com`
+  - `NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS=false`
+- For live settlement deployments:
+  - `NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta`
+  - `NEXT_PUBLIC_SOLANA_RPC_URL=<your mainnet RPC>`
+  - `NEXT_PUBLIC_USE_REAL_JUPITER_SWAPS=true`
+  - `NEXT_PUBLIC_JUPITER_API_KEY=<your Jupiter API key>`
+
+### Prisma on Vercel
+
+This project already runs `prisma generate` during install/build.
+
+You still need to apply migrations to your production database:
+
+```bash
+npx prisma migrate deploy
+```
+
+Run that against the production `DATABASE_URL` before or during rollout.
+
+### Vercel Build Status
+
+The app now builds successfully with:
+
+```bash
+npm run build
+```
+
+## Useful Commands
+
+```bash
+npm run dev
+npm run build
+npm test
+npx prisma migrate dev
+npx prisma migrate deploy
+```
 
 ## Remaining Production Work
 
-- deeper live settlement validation on mainnet
+- deeper mainnet live-settlement validation
 - stronger reconciliation and merchant webhook flows
-- more complete operational monitoring
-- final production hardening around payout/accounting guarantees
+- operational monitoring and alerting
+- production payout/accounting hardening

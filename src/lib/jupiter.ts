@@ -1,5 +1,12 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 
+interface JupiterWalletAdapter {
+    publicKey: PublicKey;
+    signTransaction: (transaction: unknown) => Promise<{
+        serialize: () => Uint8Array;
+    }>;
+}
+
 // USDC mint address on devnet
 export const USDC_MINT = new PublicKey('Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
 
@@ -36,7 +43,7 @@ export async function getQuote(
 
 export async function executeSwap(
     connection: Connection,
-    wallet: any,
+    wallet: JupiterWalletAdapter,
     inputMint: PublicKey,
     amount: number,
 ) {

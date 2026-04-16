@@ -95,7 +95,7 @@ export default function Login() {
                 </button>
             </form>
             <p className="mt-8 text-center text-gray-600 dark:text-gray-400">
-                Don't have an account? <a href="/signup" className="text-amber-600 font-semibold hover:text-amber-500 transition-colors">Sign up</a>
+                Don&apos;t have an account? <a href="/signup" className="text-amber-600 font-semibold hover:text-amber-500 transition-colors">Sign up</a>
             </p>
         </div>
     );

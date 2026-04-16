@@ -38,7 +38,7 @@ export const useAuth = (requireAuth: boolean = true) => {
             window.removeEventListener('storage', handleStorage);
             window.removeEventListener(AUTH_EVENT, handleAuthChanged);
         };
-    }, [router]);
+    }, [requireAuth, router]);
 
     const login = (token: string, merchant:string) => {
         localStorage.setItem(AUTH_STORAGE_KEY, token);

@@ -19,6 +19,7 @@ const SOLANA_NETWORK = (
 const normalizeBaseUrl = (url: string) => url.replace(/\/$/, '').replace(/\/swap\/v\d+$/, '');
 const JUPITER_API_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_JUPITER_API_URL || 'https://api.jup.ag');
 const JUPITER_API_KEY = process.env.NEXT_PUBLIC_JUPITER_API_KEY || process.env.JUPITER_API_KEY || '';
+const PUBLIC_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 
 // RPC Endpoints
 const RPC_ENDPOINTS = {
@@ -61,6 +62,7 @@ export const config = {
   jupiterApiKey: JUPITER_API_KEY,
   hasJupiterApiKey: Boolean(JUPITER_API_KEY),
   supportsRealJupiterSwaps: Boolean(JUPITER_API_KEY) && SOLANA_NETWORK === 'mainnet-beta',
+  publicSiteUrl: PUBLIC_SITE_URL,
   tokenAddresses: TOKEN_ADDRESSES,
   confirmationOptions: CONFIRMATION_OPTIONS,
   // In production this should be explicitly true only when fully ready for real settlement.

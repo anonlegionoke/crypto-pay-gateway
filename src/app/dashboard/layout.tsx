@@ -10,19 +10,23 @@ import Link from 'next/link';
 
 const AUTH_EVENT = 'auth-changed';
 
+interface MerchantInfo {
+    name?: string;
+}
+
 export default function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
     const { isAuthenticated, logout } = useAuth();
-    const [merchantInfo, setMerchantInfo] = useState<any>(null);
+    const [merchantInfo, setMerchantInfo] = useState<MerchantInfo | null>(null);
     const { balance, loading: walletLoading, refreshWalletInfo } = useWalletInfo();
 
     useEffect(() => {
         const syncMerchantInfo = () => {
             const storedInfo = localStorage.getItem('merchantInfo');
-            setMerchantInfo(storedInfo ? JSON.parse(storedInfo) : null);
+            setMerchantInfo(storedInfo ? JSON.parse(storedInfo) as MerchantInfo : null);
         };
 
         syncMerchantInfo();

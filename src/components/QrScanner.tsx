@@ -1,6 +1,27 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+interface Html5QrcodeScannerInstance {
+    clear: () => Promise<void> | void;
+    render: (
+        onSuccess: (decodedText: string) => void,
+        onError: (errorMessage: string) => void
+    ) => void;
+}
+
+interface Html5QrcodeScannerConstructor {
+    new (
+        elementId: string,
+        config: {
+            fps: number;
+            qrbox: { width: number; height: number };
+            rememberLastUsedCamera: boolean;
+            showTorchButtonIfSupported: boolean;
+        },
+        verbose: boolean
+    ): Html5QrcodeScannerInstance;
+}
 
 interface QrScannerProps {
     onScanSuccess: (address: string) => void;
@@ -10,47 +31,27 @@ interface QrScannerProps {
 export function QrScanner({ onScanSuccess, onScanError }: QrScannerProps) {
     const [isScanning, setIsScanning] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const scannerRef = useRef<any>(null);
+    const scannerRef = useRef<Html5QrcodeScannerInstance | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const scanner = useRef<any>(null);
+    const scanner = useRef<Html5QrcodeScannerConstructor | null>(null);
 
-    // Load the HTML5 QR Scanner library only on the client side
-    useEffect(() => {
-        const loadScanner = async () => {
+    const stopScanning = useCallback(() => {
+        if (scannerRef.current) {
             try {
-                const Html5QrcodeScanner = (await import('html5-qrcode')).Html5QrcodeScanner;
-                scanner.current = Html5QrcodeScanner;
-                setIsLoading(false);
+                scannerRef.current.clear();
+                scannerRef.current = null;
+
+                if (containerRef.current) {
+                    containerRef.current.innerHTML = '';
+                }
             } catch (error) {
-                console.error("Failed to load QR scanner library:", error);
-                if (onScanError) {
-                    onScanError("Failed to load QR scanner library");
-                }
+                console.error("Error stopping scanner:", error);
             }
-        };
-        
-        loadScanner();
-        
-        return () => {
-            // Cleanup any active scanner
-            if (scannerRef.current) {
-                try {
-                    scannerRef.current.clear();
-                } catch (error) {
-                    console.error("Error clearing scanner:", error);
-                }
-            }
-        };
-    }, [onScanError]);
-
-    // Start scanning automatically when the component mounts - no button needed
-    useEffect(() => {
-        if (!isLoading && !isScanning && scanner.current && containerRef.current) {
-            startScanning();
+            setIsScanning(false);
         }
-    }, [isLoading, isScanning]);
+    }, []);
 
-    const startScanning = async () => {
+    const startScanning = useCallback(async () => {
         if (isLoading || !scanner.current || !containerRef.current) return;
         
         try {
@@ -84,9 +85,9 @@ export function QrScanner({ onScanSuccess, onScanError }: QrScannerProps) {
                     stopScanning();
                     onScanSuccess(decodedText);
                 },
-                (error: any) => {
+                (errorMessage: string) => {
                     // This is just an error during scanning, not a fatal error
-                    console.warn("QR scan error:", error);
+                    console.warn("QR scan error:", errorMessage);
                 }
             );
         } catch (error) {
@@ -96,24 +97,36 @@ export function QrScanner({ onScanSuccess, onScanError }: QrScannerProps) {
                 onScanError("Failed to initialize QR scanner");
             }
         }
-    };
+    }, [isLoading, onScanError, onScanSuccess, stopScanning]);
 
-    const stopScanning = () => {
-        if (scannerRef.current) {
+    // Load the HTML5 QR Scanner library only on the client side
+    useEffect(() => {
+        const loadScanner = async () => {
             try {
-                scannerRef.current.clear();
-                scannerRef.current = null;
-                
-                // Clear the container
-                if (containerRef.current) {
-                    containerRef.current.innerHTML = '';
-                }
+                const Html5QrcodeScanner = (await import('html5-qrcode')).Html5QrcodeScanner;
+                scanner.current = Html5QrcodeScanner as Html5QrcodeScannerConstructor;
+                setIsLoading(false);
             } catch (error) {
-                console.error("Error stopping scanner:", error);
+                console.error("Failed to load QR scanner library:", error);
+                if (onScanError) {
+                    onScanError("Failed to load QR scanner library");
+                }
             }
-            setIsScanning(false);
+        };
+
+        loadScanner();
+
+        return () => {
+            stopScanning();
+        };
+    }, [onScanError, stopScanning]);
+
+    // Start scanning automatically when the component mounts - no button needed
+    useEffect(() => {
+        if (!isLoading && !isScanning && scanner.current && containerRef.current) {
+            startScanning();
         }
-    };
+    }, [isLoading, isScanning, startScanning]);
 
     if (isLoading) {
         return <div className="text-center p-4">Loading scanner...</div>;

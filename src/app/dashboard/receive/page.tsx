@@ -40,8 +40,9 @@ export default function ReceivePage() {
         : 'Live settlement mode currently requires mainnet-beta because the devnet USDC route is not tradable via Jupiter in this app.';
 
     const walletAddress = publicKey?.toString() || '';
-    const checkoutUrl = paymentIntent && typeof window !== 'undefined'
-        ? `${window.location.origin}/pay/${paymentIntent.paymentId}`
+    const checkoutBaseUrl = config.publicSiteUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+    const checkoutUrl = paymentIntent && checkoutBaseUrl
+        ? `${checkoutBaseUrl}/pay/${paymentIntent.paymentId}`
         : '';
 
     const handleCopy = async (value: string) => {

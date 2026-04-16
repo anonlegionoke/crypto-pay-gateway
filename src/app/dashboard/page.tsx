@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useWalletInfo } from '@/hooks/useWalletInfo';
-import { ArrowDownLeft, ArrowUpRight, FileText, ArrowRightLeft } from 'lucide-react';
+import { ArrowDownLeft, FileText, ArrowRightLeft } from 'lucide-react';
 
 interface MerchantPayment {
   id: string;
@@ -17,10 +17,8 @@ interface MerchantPayment {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { balance, usdcBalance, transactions, loading, error, refreshWalletInfo } = useWalletInfo();
+  const { usdcBalance, transactions, loading, error } = useWalletInfo();
   const [payments, setPayments] = useState<MerchantPayment[]>([]);
-  const [paymentsNextCursor, setPaymentsNextCursor] = useState<string | null>(null);
-  const [paymentsHasMore, setPaymentsHasMore] = useState(false);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const confirmedPayments = payments.filter((payment) => payment.status === 'CONFIRMED').length;
@@ -52,8 +50,6 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token) {
         setPayments([]);
-        setPaymentsNextCursor(null);
-        setPaymentsHasMore(false);
         setPaymentsLoading(false);
         return;
       }
@@ -79,8 +75,6 @@ export default function Dashboard() {
           localStorage.removeItem('merchantInfo');
           window.dispatchEvent(new Event('auth-changed'));
           setPayments([]);
-          setPaymentsNextCursor(null);
-          setPaymentsHasMore(false);
           return;
         }
 
@@ -89,8 +83,6 @@ export default function Dashboard() {
         }
         const nextPayments = data.payments || [];
         setPayments((prev) => (append ? [...prev, ...nextPayments] : nextPayments));
-        setPaymentsNextCursor(data.pageInfo?.nextCursor ?? null);
-        setPaymentsHasMore(Boolean(data.pageInfo?.hasMore));
       } catch (fetchError) {
         setPaymentsError(fetchError instanceof Error ? fetchError.message : 'Failed to load payment intents');
       } finally {
@@ -112,41 +104,6 @@ export default function Dashboard() {
       window.removeEventListener('focus', syncPayments);
     };
   }, []);
-
-  const loadMorePayments = async () => {
-    if (!paymentsNextCursor || paymentsLoading) return;
-
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    setPaymentsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        limit: '100',
-        cursor: paymentsNextCursor,
-      });
-
-      const response = await fetch(`/api/merchant/payments?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || data.error || 'Failed to load more payment intents');
-      }
-
-      const nextPayments = data.payments || [];
-      setPayments((prev) => [...prev, ...nextPayments]);
-      setPaymentsNextCursor(data.pageInfo?.nextCursor ?? null);
-      setPaymentsHasMore(Boolean(data.pageInfo?.hasMore));
-    } catch (fetchError) {
-      setPaymentsError(fetchError instanceof Error ? fetchError.message : 'Failed to load more payment intents');
-    } finally {
-      setPaymentsLoading(false);
-    }
-  };
 
   return (
     <div className="px-4 md:px-8 pb-12">
