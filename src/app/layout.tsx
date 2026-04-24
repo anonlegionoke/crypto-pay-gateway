@@ -4,6 +4,7 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 import { ClientWalletProvider as WalletProvider } from "@/components/WalletProvider";
 import { Toaster } from 'react-hot-toast';
 import NextTopLoader from 'nextjs-toploader';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: "Crypto Payment Gateway",
@@ -23,6 +24,7 @@ export default function RootLayout({
           {children}
           <Toaster position="bottom-right" />
         </WalletProvider>
+        <Analytics />
       </body>
     </html>
   );
