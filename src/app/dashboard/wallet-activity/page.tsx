@@ -64,12 +64,13 @@ export default function TransactionsPage() {
                                     <tr className="border-b-2 border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 text-sm tracking-wider uppercase">
                                         <th className="p-4 font-semibold">Type</th>
                                         <th className="p-4 font-semibold">Amount</th>
+                                        <th className="p-4 font-semibold">Date</th>
                                         <th className="p-4 font-semibold">Signature</th>
                                         <th className="p-4 font-semibold text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {transactions.map((tx: { signature: string; type: string; amount: number }) => (
+                                    {transactions.map((tx: { signature: string; type: string; amount: number; timestamp: number }) => (
                                         <tr key={tx.signature} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
                                             <td className="p-4">
                                                 <span className={`inline-flex px-3 py-1.5 rounded-full text-xs font-bold min-w-[85px] justify-center tracking-wide ${
@@ -85,6 +86,16 @@ export default function TransactionsPage() {
                                                     <span className="font-mono font-bold text-gray-900 dark:text-gray-100 text-base">{tx.amount.toFixed(4)} SOL</span>
                                                     <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold mt-1">
                                                         {tx.type === 'send' ? 'Connected wallet activity' : 'Connected wallet receipt'}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                        {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleDateString() : 'N/A'}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold mt-1">
+                                                        {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleTimeString() : ''}
                                                     </span>
                                                 </div>
                                             </td>
