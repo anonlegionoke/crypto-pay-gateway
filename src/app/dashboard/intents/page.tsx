@@ -134,6 +134,7 @@ export default function IntentsPage() {
                                         <th className="p-4 font-semibold">Status</th>
                                         <th className="p-4 font-semibold">Mode</th>
                                         <th className="p-4 font-semibold">Amount</th>
+                                        <th className="p-4 font-semibold">Date</th>
                                         <th className="p-4 font-semibold">Intent ID</th>
                                         <th className="p-4 font-semibold text-right">Action</th>
                                     </tr>
@@ -160,9 +161,19 @@ export default function IntentsPage() {
                                             </td>
                                             <td className="p-4">
                                                 <span className="font-mono font-bold text-gray-900 dark:text-gray-100 text-base">{payment.amount}</span>
-                                                <span className="text-gray-500 dark:text-gray-400 text-sm ml-1 text-bold">
+                                                <span className="text-gray-500 dark:text-gray-400 text-sm ml-1 font-bold">
                                                     {payment.token === 'So11111111111111111111111111111111111111112' ? 'SOL' : 'Token'}
                                                 </span>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                        {new Date(payment.createdAt).toLocaleDateString()}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold mt-1">
+                                                        {new Date(payment.createdAt).toLocaleTimeString()}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-4 font-mono text-sm text-gray-500 dark:text-gray-400">
                                                 <div className="flex items-center gap-2">
